@@ -2,9 +2,11 @@
 
 class Game {
 public:
+	Game();
+	~Game();
 	// Play game.
 	void play();
 
 private:
-	Position position;
+	Position* position;
 };

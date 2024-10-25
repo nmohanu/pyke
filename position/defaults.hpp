@@ -1,6 +1,11 @@
 // Default boards.
 #include <cstdint>
 
+// 8 bits startsquare, 8 bits end square.
+typedef uint32_t Move;
+typedef uint8_t Square;
+typedef uint8_t Piece;
+
 // Default bitboards.
 constexpr uint64_t ROOK_SQUARES = 0b1000000100000000000000000000000000000000000000000000000010000001ULL;
 constexpr uint64_t KNIGHT_SQUARES = 0b0100001000000000000000000000000000000000000000000000000001000010ULL;
@@ -26,3 +31,35 @@ constexpr uint64_t TOTAL_SQUARES = 0b1111111111111111000000000000000000000000000
 #define B_PAWN_BOARD	  bit_boards[B_PAWN]
 #define TOTAL_BOARD		  bit_boards[TOTAL]
 #define BLACK_PIECE_BOARD bit_boards[COLOR_BOARD]
+
+#define W_KING		0
+#define W_QUEEN		1
+#define W_ROOK		2
+#define W_BISHOP	3
+#define W_KNIGHT	4
+#define W_PAWN		5
+#define B_KING		6
+#define B_QUEEN		7
+#define B_ROOK		8
+#define B_BISHOP	9
+#define B_KNIGHT	10
+#define B_PAWN		11
+#define TOTAL		12
+#define COLOR_BOARD 13
+#define EMPTY		14
+#define INVALID		15
+
+// Instruction decoding.
+#define get_move_piece(m)	(m & (0b1111 << 12))
+#define get_move_type(m)	(m & 0b111)
+#define get_move_content(m) (m & (0b1111 << 8))
+#define get_move_from(m)	(m & (0b1111'1111 << 24))
+#define get_move_to(m)		(m & (0b1111'1111 << 16))
+
+// Util
+
+// Convert square to shift amount.
+#define square_to_shamt(s) (63 - s)
+
+// Convert square to mask.
+#define square_to_mask(s) (1ULL << square_to_shamt(s))

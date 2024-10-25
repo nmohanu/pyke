@@ -2,10 +2,18 @@
 
 #include <iostream>
 
+Game::Game() { position = nullptr; }
+
+Game::~Game() {
+	if (!position) return;
+	delete position;
+	position = nullptr;
+}
+
 void Game::play() {
 	bool should_quit = false;
 	while (!should_quit) {
-		position.print();
+		position->print();
 		std::cout << "move <movestring>		Do move, e.g. a2a4 \n"
 				  << "perft <depth>			Do perft test up to given depth. \n"
 				  << "pyke get				Get best move. \n"
