@@ -63,3 +63,18 @@ constexpr uint64_t TOTAL_SQUARES = 0b1111111111111111000000000000000000000000000
 
 // Convert square to mask.
 #define square_to_mask(s) (1ULL << square_to_shamt(s))
+
+// Set en passant status.
+#define set_en_passant(n) ((pos_flag = pos_flag & 0b0000'0000) | n)
+
+// Set castling status.
+#define set_castling(n) (pos_flag = (pos_flag & (0b0000'0000 << 8)) | n)
+
+// Get board of piece p.
+#define get_board(p) (bit_boards[p])
+
+// Add the color sign to an unsigned piece.
+#define sign_piece(p) (p + 6 * player_sign)
+
+// Get color sign of a piece.
+#define get_piece_sign(p) (p > 5)
