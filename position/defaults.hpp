@@ -74,7 +74,9 @@ constexpr uint64_t TOTAL_SQUARES = 0b1111111111111111000000000000000000000000000
 #define get_board(p) (bit_boards[p])
 
 // Add the color sign to an unsigned piece.
-#define sign_piece(p) (p + 6 * player_sign)
+#define sign_piece(p)		 (p + 6 * player_sign)
+#define unsign_piece(p)		 (p - 6 * player_sign)
+#define invert_piece_sign(p) (unsign_piece(p) + 6 * !player_sign)
 
 // Get color sign of a piece.
 #define get_piece_sign(p) (p > 5)

@@ -14,7 +14,35 @@ void Position::do_move(Move move) {
 	set_en_passant(0);
 
 	// Call move function based on move type.
-	(this->*do_move_functions[move_type])(move);
+	switch (move_type) {
+	case 0:
+		plain_move(move);
+		break;
+	case 1:
+		castle_move(move);
+		break;
+	case 2:
+		capture_move(move);
+		break;
+	case 3:
+		en_passant_move(move);
+		break;
+	case 4:
+		promotion_move(move);
+		break;
+	case 5:
+		pawn_2frwrd_move(move);
+		break;
+	case 6:
+		king_move(move);
+		break;
+	case 7:
+		king_take_move(move);
+		break;
+	case 8:
+		rook_move(move);
+		break;
+	}
 
 	// Toggle player sign.
 	player_sign = !player_sign;
@@ -62,12 +90,45 @@ void Position::castle_move(Move move) {
 	remove_castling_right(player_sign, 0b11);
 }
 
-void Position::en_passant_move(Move move) {}
+void Position::en_passant_move(Move move) {
+	Square from = get_move_from(move);
+	Square to = get_move_to(move);
+	Square captured_pawn_square = ((to + 8) - 16 * player_sign);
+	Piece moving_piece = get_move_piece(move);
+	Piece captured_piece = invert_piece_sign(moving_piece);
 
+	remove_from_board(moving_piece, from);
+	add_to_board(moving_piece, to);
+	remove_from_board(captured_piece, captured_pawn_square);
+}
+
+// Move pawn 2 squares forward and update en passant status. "Left"" and "right" are as seen
+// from white's perspective.
 void Position::pawn_2frwrd_move(Move move) {
-	move_piece(get_move_from(move), get_move_to(move), get_move_piece(move));
+	Square to = get_move_to(move);
+	Piece moving_piece = get_move_piece(move);
+	move_piece(get_move_from(move), to, moving_piece);
 
 	// pawn moved two forward, update en passant status.
+	Square square_left = to - 1;
+	Square square_right = to + 1;
+	Piece piece_left = get_piece(square_left);
+	Piece piece_right = get_piece(square_right);
+	bool left_is_opp_pawn = invert_piece_sign(piece_left) == moving_piece;
+	bool right_is_opp_pawn = invert_piece_sign(piece_right) == moving_piece;
+
+	// Edge of board cases.
+	bool not_edge_left = (to % 8) != 0;
+	bool not_edge_right = (to % 8) != 7;
+
+	// Check if en passant is possible.
+	bool possible_left = left_is_opp_pawn && not_edge_left;
+	bool possible_right = right_is_opp_pawn && not_edge_right;
+
+	// Update flag.
+	uint8_t new_ep_flag = to % 8;
+	new_ep_flag |= 0b1000'0000 & possible_left;
+	new_ep_flag |= 0b0100'0000 & possible_right;
 }
 
 // King move.

@@ -9,7 +9,29 @@ Position::~Position() {}
 
 // Create attack board for specific piece.
 uint64_t Position::make_reach_board(Square square, bool is_black, Piece piece_type) {
-	return (this->*move_functions[piece_type - 6 * is_black])(square, is_black);
+	uint64_t move_board = 0b0;
+	piece_type = unsign_piece(piece_type);
+	switch (piece_type) {
+	case 0:
+		move_board = get_pawn_move(square, is_black);
+		break;
+	case 1:
+		move_board = get_rook_move(square, is_black);
+		break;
+	case 2:
+		move_board = get_bishop_move(square, is_black);
+		break;
+	case 3:
+		move_board = get_queen_move(square, is_black);
+		break;
+	case 4:
+		move_board = get_king_move(square, is_black);
+		break;
+	case 5:
+		move_board = get_knight_move(square, is_black);
+		break;
+	}
+	return move_board;
 }
 
 // Get the piece on given square.

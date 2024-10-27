@@ -43,7 +43,12 @@ uint64_t Position::get_queen_move(Square square, bool is_black) {
 
 // Pawn moving.
 uint64_t Position::get_pawn_move(Square square, bool is_black) {
-	return (this->*move_functions[6 + is_black])(square, is_black);
+	switch (is_black) {
+	case 0:
+		return get_pawn_move_white(square, is_black);
+	default:
+		return get_pawn_move_black(square, is_black);
+	}
 }
 
 // Black pawn.

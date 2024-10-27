@@ -80,18 +80,6 @@ private:
 	uint64_t get_pawn_move_black(Square s, bool is_black);
 	uint64_t get_pawn_move_white(Square s, bool is_black);
 
-	// Fast indexing of the needed move board generator.
-	uint64_t (Position::* move_functions[8])(uint8_t, bool) = {
-		&Position::get_pawn_move,
-		&Position::get_rook_move,
-		&Position::get_bishop_move,
-		&Position::get_queen_move,
-		&Position::get_king_move,
-		&Position::get_knight_move,
-		&Position::get_pawn_move_white,
-		&Position::get_pawn_move_black
-	};
-
 	// Stacks.
 	// History of position flags.
 	// [11:8]: castling rights.
