@@ -46,7 +46,7 @@ bool Position::move_legal(Move move, Board enemy_board) {
 
 // Returns whether a square is under attack.
 bool Position::is_attacked(Square square, Board enemy_board) {
-	return (get_pawn_move(square, !player_sign) & bit_boards[PAWN] & enemy_board)
+	return (get_pawn_move(square, player_sign) & bit_boards[PAWN] & enemy_board)
 		|| (get_knight_move(square) & bit_boards[KNIGHT] & enemy_board)
 		|| (get_rook_move(square) & (bit_boards[ROOK] | bit_boards[QUEEN]) & enemy_board)
 		|| (get_bishop_move(square) & (bit_boards[BISHOP] | bit_boards[QUEEN]) & enemy_board)
