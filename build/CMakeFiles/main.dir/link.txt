@@ -1,1 +1,0 @@
-/usr/bin/c++ -g CMakeFiles/main.dir/main.cpp.o CMakeFiles/main.dir/do_moves.cpp.o CMakeFiles/main.dir/move_generator.cpp.o CMakeFiles/main.dir/piece_moves.cpp.o CMakeFiles/main.dir/position.cpp.o CMakeFiles/main.dir/undo_moves.cpp.o -o main
