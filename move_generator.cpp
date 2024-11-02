@@ -11,22 +11,22 @@ Board Position::make_reach_board(Square square, Piece piece_type) {
 	Board move_board = 0b0;
 	switch (piece_type) {
 	case 0:
-		move_board = get_pawn_move(square, !player_sign);
+		move_board = get_pawn_move(square, !player_sign, TOTAL_BOARD, BLACK_PIECE_BOARD);
 		break;
 	case 1:
 		move_board = get_king_move(square);
 		break;
 	case 2:
-		move_board = get_rook_move(square);
+		move_board = get_rook_move(square, TOTAL_BOARD);
 		break;
 	case 3:
-		move_board = get_bishop_move(square);
+		move_board = get_bishop_move(square, TOTAL_BOARD);
 		break;
 	case 4:
 		move_board = get_knight_move(square);
 		break;
 	case 5:
-		move_board = get_queen_move(square);
+		move_board = get_queen_move(square, TOTAL_BOARD);
 		break;
 	}
 
@@ -46,10 +46,10 @@ bool Position::move_legal(Move move, Board enemy_board) {
 
 // Returns whether a square is under attack.
 bool Position::is_attacked(Square square, Board enemy_board) {
-	return (get_pawn_move(square, player_sign) & bit_boards[PAWN] & enemy_board)
+	return (get_pawn_move(square, player_sign, TOTAL_BOARD, BLACK_PIECE_BOARD) & bit_boards[PAWN] & enemy_board)
 		|| (get_knight_move(square) & bit_boards[KNIGHT] & enemy_board)
-		|| (get_rook_move(square) & (bit_boards[ROOK] | bit_boards[QUEEN]) & enemy_board)
-		|| (get_bishop_move(square) & (bit_boards[BISHOP] | bit_boards[QUEEN]) & enemy_board)
+		|| (get_rook_move(square, TOTAL_BOARD) & (bit_boards[ROOK] | bit_boards[QUEEN]) & enemy_board)
+		|| (get_bishop_move(square, TOTAL_BOARD) & (bit_boards[BISHOP] | bit_boards[QUEEN]) & enemy_board)
 		|| (get_king_move(square) & bit_boards[KING] & enemy_board);
 }
 
@@ -159,7 +159,7 @@ void Position::gen_type_pawn(Board player_piece_board, Board enemy_board) {
 	Board pawn_board = get_board(PAWN) & player_piece_board;
 
 	while (__builtin_popcountll(pawn_board)) {
-		Square square = __builtin_clzll(pawn_board);
+		Square square = pop(pawn_board);
 		set_move_from(move, square);
 
 		// Piece's reach.
@@ -181,7 +181,7 @@ void Position::gen_type_pawn(Board player_piece_board, Board enemy_board) {
 		// Generate plain moves.
 		while (__builtin_popcountll(moveable_squares)) {
 			// Square that the piece moves to.
-			Square moves_to = __builtin_clzll(moveable_squares);
+			Square moves_to = pop(moveable_squares);
 			set_move_to(move, moves_to);
 
 			// Check if pawn moves two squares.
@@ -189,26 +189,22 @@ void Position::gen_type_pawn(Board player_piece_board, Board enemy_board) {
 			set_move_type(move, (moves_two_squares ? MOVE_PAWN_DOUBLE : MOVE_PLAIN));
 
 			push_if_legal(move, enemy_board);
-
-			moveable_squares &= ~(square_to_mask(moves_to));
 		}
 
 		// Generate capture moves.
 		set_move_type(move, MOVE_CAPTURE);
 		while (__builtin_popcountll(capture_squares)) {
 			// Square that the piece moves to.
-			Square moves_to = __builtin_clzll(capture_squares);
+			Square moves_to = pop(capture_squares);
 			set_move_to(move, moves_to);
 			set_move_content(move, get_piece(moves_to));
 			push_if_legal(move, enemy_board);
-
-			capture_squares &= ~(square_to_mask(moves_to));
 		}
 
 		// Promotions.
 		set_move_type(move, MOVE_PROMO);
 		while (__builtin_popcountll(promotion_squares)) {
-			Square moves_to = __builtin_clzll(promotion_squares);
+			Square moves_to = pop(promotion_squares);
 			set_move_to(move, moves_to);
 
 			// Possible pieces to promote to.
@@ -217,11 +213,7 @@ void Position::gen_type_pawn(Board player_piece_board, Board enemy_board) {
 				set_move_content(move, promote_to);
 				push_if_legal(move, enemy_board);
 			}
-
-			promotion_squares &= ~(square_to_mask(moves_to));
 		}
-
-		pawn_board &= ~(square_to_mask(square));
 	}
 }
 
@@ -238,7 +230,7 @@ void Position::gen_type_plain_and_capture(Board player_piece_board, uint64_t ene
 
 		// While there are instances of the piece left on the board...
 		while (__builtin_popcountll(piece_board)) {
-			Square square = __builtin_clzll(piece_board);
+			Square square = pop(piece_board);
 			set_move_from(move, square);
 
 			// Squares that the piece can move to.
@@ -254,11 +246,9 @@ void Position::gen_type_plain_and_capture(Board player_piece_board, uint64_t ene
 			set_move_type(move, 0b000);
 			while (__builtin_popcountll(empty_squares)) {
 				// Square that the piece moves to.
-				Square moves_to = __builtin_clzll(empty_squares);
+				Square moves_to = pop(empty_squares);
 				set_move_to(move, moves_to);
 				push_if_legal(move, enemy_board);
-
-				empty_squares &= ~(square_to_mask(moves_to));
 			}
 
 			// Generate capture moves.
@@ -266,14 +256,11 @@ void Position::gen_type_plain_and_capture(Board player_piece_board, uint64_t ene
 
 			while (__builtin_popcountll(capture_squares)) {
 				// Square that the piece moves to.
-				Square moves_to = __builtin_clzll(capture_squares);
+				Square moves_to = pop(capture_squares);
 				set_move_to(move, moves_to);
 				set_move_content(move, get_piece(moves_to));
 				push_if_legal(move, enemy_board);
-
-				capture_squares &= ~(square_to_mask(moves_to));
 			}
-			piece_board &= ~(square_to_mask(square));
 		}
 	}
 }

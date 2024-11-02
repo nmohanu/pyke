@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include "piece_moves.hpp"
 #include "stack.hpp"
 #include "util.hpp"
 
@@ -88,14 +89,6 @@ public:
 
 	// Keep track of sign of player at turselect linen. (black = true).
 	bool player_sign = false;
-
-	// Move functions.
-	Board get_pawn_move(Square s, Flag player_sign);
-	Board get_rook_move(Square s);
-	Board get_bishop_move(Square s);
-	Board get_queen_move(Square s);
-	Board get_king_move(Square s);
-	Board get_knight_move(Square s);
 
 	// Color specific pawn move functions.
 	Board get_pawn_move_black(Square s, bool is_black);

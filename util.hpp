@@ -2,7 +2,6 @@
 #include <cstdint>
 #include <string>
 
-#include "defaults.hpp"
 inline std::string make_chess_notation(int index) {
 	// Convert column index (0-7) to letter (a-h)
 	char column = 'a' + (index % 8);
@@ -37,4 +36,10 @@ inline uint8_t notation_to_square(std::string notation) {
 	int column = notation[0] - 'a';
 	int row = 7 - (notation[1] - '1');
 	return ((row * 8) + column);
+}
+
+inline uint8_t pop(uint64_t& b) {
+	auto index = uint8_t(__builtin_clzll(b));
+	b ^= (1ULL << (63 - index));
+	return index;
 }
