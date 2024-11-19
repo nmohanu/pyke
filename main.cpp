@@ -1,13 +1,14 @@
 #include <iostream>
 
-#include "position.hpp"
+#include "perft.hpp"
+#include "pyke.hpp"
+
+using namespace Pyke;
 
 int main(int argc, char* argv[]) {
 	std::cout << "Pyke chess move generator by Nathanael Mohanu \n";
-
-	Position position;
-	position.print_to_terminal();
-	position.perft(6);
-	position.print_to_terminal();
+	Position pos;
+	print_position(pos);
+	perft(4, pos);
 	return 0;
 }

@@ -1,10 +1,12 @@
 #include <array>
 #include <cstdint>
 
+#ifndef LOOKUPTABLES_H
+#define LOOKUPTABLES_H
+
 // Lookup tables for piece moves.
 // Bishop and rook tables are created below, these are made with a bit of help from "Chess Programming"'s youtube
 // videos.'
-
 constexpr uint64_t KING_MOVE_SQUARES[] = {
 	4665729213955833856ULL,
 	11592265440851656704ULL,
@@ -443,3 +445,5 @@ constexpr std::array<std::array<uint64_t, 512>, 64> create_bishop_attacks() {
 // Attack table instances.
 const static std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
 const static std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
+
+#endif

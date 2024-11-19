@@ -1,7 +1,9 @@
 
 #include <cstdio>
 #include <stdexcept>
-class Position;
+
+#ifndef STACK_H
+#define STACK_H
 
 template <typename T>
 struct MoveList;
@@ -49,3 +51,5 @@ struct Stack {
 private:
 	T* last;
 };
+
+#endif

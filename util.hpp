@@ -2,6 +2,11 @@
 #include <cstdint>
 #include <string>
 
+#include "move.hpp"
+
+#ifndef UTIL_H
+#define UTIL_H
+
 inline std::string make_chess_notation(int index) {
 	// Convert column index (0-7) to letter (a-h)
 	char column = 'a' + (index % 8);
@@ -39,7 +44,38 @@ inline uint8_t notation_to_square(std::string notation) {
 }
 
 inline uint8_t pop(uint64_t& b) {
-	auto index = uint8_t(__builtin_clzll(b));
+	Square index = uint8_t(__builtin_clzll(b));
 	b ^= (1ULL << (63 - index));
 	return index;
 }
+
+static std::string move_to_string(Move move) {
+	std::string start_notation = make_chess_notation(move.get_from());
+	std::string destination_notation = make_chess_notation(move.get_to());
+	std::string promotion_letter = "";
+	if (move.get_type() == MOVE_PROMO) {
+		switch (move.get_content()) {
+		case 1:
+			promotion_letter = "q";
+			break;
+		case 2:
+			promotion_letter = "r";
+			break;
+		case 3:
+			promotion_letter = "b";
+			break;
+		case 4:
+			promotion_letter = "n";
+			break;
+		default:
+			break;
+		}
+	}
+	return start_notation + destination_notation + promotion_letter;
+}
+
+constexpr static inline uint8_t square_to_shamt(Square s) { return 63 - s; }
+
+constexpr static inline uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
+
+#endif

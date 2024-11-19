@@ -1,5 +1,10 @@
+#include <stdexcept>
+
 #include "defaults.hpp"
-#include "piece_moves.hpp"
+#include "util.hpp"
+
+#ifndef BOARD_H
+#define BOARD_H
 
 struct Board {
 	BitBoard w_pawn = INIT_PAWN_SQUARES & INIT_WHITE_PIECES;
@@ -21,9 +26,81 @@ struct Board {
 
 	BitBoard occ_board = INIT_TOTAL_SQUARES;
 
-	BitBoard w_king_dg = get_bishop_move(60, occ_board);
-	BitBoard w_king_hz = get_rook_move(60, occ_board);
+	bool is_equal(const Board& other) const {
+		return (w_pawn == other.w_pawn) && (w_king == other.w_king) && (w_rook == other.w_rook)
+			&& (w_bishop == other.w_bishop) && (w_knight == other.w_knight) && (w_queen == other.w_queen)
+			&& (b_pawn == other.b_pawn) && (b_king == other.b_king) && (b_rook == other.b_rook)
+			&& (b_bishop == other.b_bishop) && (b_knight == other.b_knight) && (b_queen == other.b_queen)
+			&& (w_board == other.w_board) && (b_board == other.b_board) && (occ_board == other.occ_board);
+	}
 
-	BitBoard b_king_dg = get_bishop_move(4, occ_board);
-	BitBoard b_king_hz = get_rook_move(4, occ_board);
+	Board copy() const {
+		Board new_board;
+		new_board.w_pawn = w_pawn;
+		new_board.w_king = w_king;
+		new_board.w_rook = w_rook;
+		new_board.w_bishop = w_bishop;
+		new_board.w_knight = w_knight;
+		new_board.w_queen = w_queen;
+
+		new_board.b_pawn = b_pawn;
+		new_board.b_king = b_king;
+		new_board.b_rook = b_rook;
+		new_board.b_bishop = b_bishop;
+		new_board.b_knight = b_knight;
+		new_board.b_queen = b_queen;
+
+		new_board.w_board = w_board;
+		new_board.b_board = b_board;
+		new_board.occ_board = occ_board;
+
+		return new_board;
+	}
+
+	// Returns the player's occupacion board.
+	template <bool white>
+	inline BitBoard get_player_occ(Board& board) {
+		return white ? board.w_board : board.b_board;
+	}
+
+	template <bool white, Piece p>
+	inline BitBoard* get_board_pointer() {
+		switch (p) {
+		case PAWN:
+			return white ? &w_pawn : &b_pawn;
+		case KING:
+			return white ? &w_king : &b_king;
+		case ROOK:
+			return white ? &w_rook : &b_rook;
+		case BISHOP:
+			return white ? &w_bishop : &b_bishop;
+		case KNIGHT:
+			return white ? &w_knight : &b_knight;
+		case QUEEN:
+			return white ? &w_queen : &b_queen;
+		}
+	}
+
+	// Gets the board for a given color and piece.
+	template <bool white, Piece p>
+	inline BitBoard get_piece_board() {
+		auto* b = get_board_pointer<white, p>();
+		return p == EMPTY ? 0xFFFF'FFFF'FFFF'FFFF : b;
+	}
+
+	// Returns the piece on the square or EMPTY by defualt.
+	template <bool white, bool only_captureable>
+	inline Piece get_piece(Square square) {
+		auto begin = only_captureable ? non_king_pieces.begin() : pieces.begin();
+		auto end = only_captureable ? non_king_pieces.begin() : pieces.begin();
+		auto const piece = std::__find_if(begin, end, [&](auto const& p) {
+			return *get_piece_board<white, p>() & square_to_mask(square);
+		});
+		return *piece;
+	}
+
+	// Returns whether a square is occupied or not.
+	inline bool square_occ(Square square) { return get_bit_64(occ_board, square); }
 };
+
+#endif
