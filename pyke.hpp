@@ -318,33 +318,36 @@ constexpr static inline void generate_any(Board& b, MaskSet& maskset) {
 }
 
 // Create move list for given position.
-template <bool white>
-static MoveList<Move> generate_movelist(Position& pos) {
-	Board& b = pos.board;
-	Move* last = pos.movelist.top();
+template <bool white, int depth_to_go>
+int count_moves(Position& pos) {
+	if constexpr (depth_to_go == 0) return 1;
+	int ret = 0;
 	// Make king mask.
-	Square king_square = __builtin_clzll(*b.get_piece_board<white, KING>());
+	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
 	// Create all needed masks.
 	MaskSet maskset = create_masks<white>(pos, king_square);
 	// Lambda function for piece generation.
-	auto generate_for_pieces = [&](auto... pieces) { (generate_any<white, pieces>(b, maskset), ...); };
+	auto generate_for_pieces = [&](auto... pieces) { (generate_any<white, pieces>(pos.board, maskset), ...); };
 	// Amount of checkers.
 	uint8_t checker_cnt = maskset.get_check_cnt();
 	// Conditionals only taken when king is in check. If double check, only king can move. Else, limit the target
-	// squares to the checkmask.
+	// squares to the checkmask and skip castling moves..
 	if (checker_cnt >= 2)
 		goto king;
-	else if (checker_cnt)
+	else if (checker_cnt) {
 		maskset.can_move_to &= maskset.get_check_mask();
+		goto no_castle;
+	}
+	// Castling moves.
+	ret += generate_castle_move<white, true>(pos, king_square);
+	ret += generate_castle_move<white, false>(pos, king_square);
+no_castle:
 	// Generate moves.
-	generate_for_pieces(ROOK, BISHOP, KNIGHT, QUEEN, PAWN);
+	ret += generate_for_pieces(ROOK, BISHOP, KNIGHT, QUEEN, PAWN);
 	// King and queen side castle.
-	generate_castle_move<white, true>(pos, king_square);
-	generate_castle_move<white, false>(pos, king_square);
 king:
-	generate_king_moves<white>(maskset, king_square, pos);
-	// Return a sublist containing all newly generated moves.
-	return pos.movelist.from(last);
+	ret += generate_king_moves<white>(maskset, king_square, pos);
+	return ret;
 }
 
 };	// namespace Pyke

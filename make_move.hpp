@@ -48,14 +48,14 @@ static void unmake_move_piece(Square from, Square to, Board& b) {
 
 // Do a plain, non capturing move.
 template <bool white, Piece p>
-static void plain_move(Move& m, Board& b) {
-	move_piece<white, p>(m.get_from(), m.get_to(), b);
+static void plain_move(Square from, Square to, Board& b) {
+	move_piece<white, p>(from, to, b);
 }
 
 // Undo a non capturing move.
 template <bool white, Piece p>
-static void unmake_plain_move(Move& m, Board& b) {
-	unmake_move_piece<white, p>(m.get_from(), m.get_to(), b);
+static void unmake_plain_move(Square from, Square to, Board& b) {
+	unmake_move_piece<white, p>(from, to, b);
 }
 
 // Castle and update castling rights.
@@ -75,169 +75,82 @@ static void unmake_castle_move(Board& b) {
 
 // Do capture move.
 template <bool white, Piece p, Piece captured>
-static void capture_move(Move& move, Board& board) {
-	move.set_content(captured);
-	remove_from_board<!white, p>(board, move.get_to());
-	move_piece<white>(move.get_from(), move.get_to(), move.get_piece(), board);
+static void capture_move(Square from, Square to, Board& board) {
+	remove_from_board<!white, captured>(board, to);
+	move_piece<white, p>(from, to, board);
 }
 
 // Undo capture move.
 template <bool white, Piece p, Piece captured>
-static void unmake_capture_move(Move& m, Board& b) {
-	unmake_move_piece<white, p>(m.get_from(), m.get_to(), b);
-	add_to_board<!white, captured>(b, m.get_to());
+static void unmake_capture_move(Square from, Square to, Board& b) {
+	unmake_move_piece<white, p>(from, to, b);
+	add_to_board<!white, captured>(b, to);
 }
 
 // Do ep move.
 template <bool white>
-static void ep_move(Move& m, Board& b) {
-	Square captured_sq = white ? (m.get_to() - 8) : (m.get_to() + 8);
-	move_piece<white, PAWN>(m.get_from(), m.get_to(), b);
+static void ep_move(Square from, Square to, Board& b) {
+	Square captured_sq = white ? (to - 8) : (to + 8);
+	move_piece<white, PAWN>(from, to, b);
 	remove_from_board<!white, PAWN>(b, captured_sq);
 }
 
 // Undo ep move.
 template <bool white>
-static void unmake_ep_move(Move& m, Board& b) {
-	Square captured_sq = white ? (m.get_to() - 8) : (m.get_to() + 8);
-	unmake_move_piece<white, PAWN>(m.get_from(), m.get_to(), PAWN, b);
+static void unmake_ep_move(Square from, Square to, Board& b) {
+	Square captured_sq = white ? (to - 8) : (to + 8);
+	unmake_move_piece<white, PAWN>(from, to, PAWN, b);
 	add_to_board<white, PAWN>(b, captured_sq);
 }
 
 // Do promo move.
-template <bool white, Piece p, uint16_t data>
-static void promo_move(Move& m, Board& b) {
+template <bool white, Piece p, Piece captured>
+static void promo_move(Square from, Square to, Board& b) {
 	// Check if promotion was also a capture.
-	constexpr Piece captured = data & 0b111;
-	if constexpr (captured) {
-		Piece captured = data & 0b111;
-		m.set_content(captured);
-		remove_from_board<white, captured>(b, m.get_to());
-	}
-	remove_from_board<white, PAWN>(b, m.get_from());
-	add_to_board<white, p>(b, m.get_to());
+	if constexpr (captured != EMPTY) remove_from_board<white, captured>(b, to);
+	remove_from_board<white, PAWN>(b, from);
+	add_to_board<white, p>(b, to);
 }
 
 // Undo promo move.
-template <bool white, Piece promo, bool captured>
-static void unmake_promo_move(Move& m, Board& b) {
-	add_to_board<white, PAWN>(b, m.get_from(), PAWN);
-	remove_from_board<white, promo>(b, m.get_to());
-
+template <bool white, Piece p, Piece captured>
+static void unmake_promo_move(Square from, Square to, Board& b) {
+	add_to_board<white, PAWN>(b, from, PAWN);
+	remove_from_board<white, p>(b, to);
 	// Check if promotion was also a capture.
-	if constexpr (captured != EMPTY) {
-		add_to_board<white, captured>(b, m.get_to(), m.get_content());
-	}
+	if constexpr (captured != EMPTY) add_to_board<white, captured>(b, to);
 }
 
 // Do pawn double forward move.
 template <bool white>
-static void pawn_double(Move& m, Board& b, GameState& gamestate) {
-	move_piece<white, PAWN>(m.get_from(), m.get_to(), b);
+static void pawn_double(Square from, Square to, Board& b, GameState& gamestate) {
+	move_piece<white, PAWN>(from, to, b);
 
 	// pawn moved two forward, update en passant status.
-	bool left_is_pawn = b.get_piece<white>(m.get_to() - 1) == PAWN;
-	bool right_is_pawn = b.get_piece<white>(m.get_to() + 1) == PAWN;
-	bool left_piece_sign = square_to_mask(m.get_to() - 1) & b.w_board;
-	bool right_piece_sign = square_to_mask(m.get_to() + 1) & b.w_board;
+	bool left_is_pawn = b.get_piece<white>(to - 1) == PAWN;
+	bool right_is_pawn = b.get_piece<white>(to + 1) == PAWN;
+	bool left_piece_sign = square_to_mask(to - 1) & b.w_board;
+	bool right_piece_sign = square_to_mask(to + 1) & b.w_board;
 	bool left_is_opp_pawn = left_is_pawn && (left_piece_sign != white);
 	bool right_is_opp_pawn = right_is_pawn && (right_piece_sign != white);
 
 	// Edge of board cases.
-	bool not_edge_left = m.get_to() % 8 != 0;
-	bool not_edge_right = m.get_to() % 8 != 7;
+	bool not_edge_left = to % 8 != 0;
+	bool not_edge_right = to % 8 != 7;
 
 	// Check if en passant is possible.
 	bool possible_left = left_is_opp_pawn && not_edge_left;
 	bool possible_right = right_is_opp_pawn && not_edge_right;
 
 	// Update flag.
-	uint8_t file = m.get_to() % 8;
+	uint8_t file = to % 8;
 	if (possible_left) gamestate.set_en_passant(possible_left, file);
 	if (possible_right) gamestate.set_en_passant(possible_right, file);
 }
 
 // Undo double pawn move.
 template <bool white>
-static void unmake_pawn_double(Move& m, Board& b) {
-	unmake_move_piece<white, PAWN>(m.get_from(), m.get_to(), b);
+static void unmake_pawn_double(Square from, Square to, Board& b) {
+	unmake_move_piece<white, PAWN>(from, to, b);
 }
-
-template <bool white, MoveType type, Piece p, uint8_t data>
-void make_move(Move& m, Position& pos) {
-	pos.history.push(pos.gamestate);
-
-	constexpr uint8_t cap = data & 0b111;
-	switch (type) {
-	case MoveType::PLAIN:
-		if constexpr (cap)
-			capture_move<white, p, data>(m, pos.board);
-		else
-			plain_move<white, p>(m, pos.board);
-		break;
-	case MoveType::CASTLE:
-		castle_move<white, cap>(m, pos.board, pos.gamestate);
-		break;
-	case MoveType::PAWN_MOVE:
-		switch (cap) {
-		case 0:
-			ep_move<white>(m, pos.board);
-			break;
-		case 1:
-			pawn_double<white>(m, pos.board, pos.gamestate);
-			break;
-		case 2:
-			promo_move<white, p>(m, pos.board);
-			break;
-		}
-		break;
-	case MoveType::KING_MOVE:
-		if constexpr (data & 0b111)
-			capture_move<white, KING, data>(m, pos.board);
-		else
-			plain_move<white, KING>(m, pos.board);
-		// Remove castling rights.
-		pos.gamestate.rm_cr<white>();
-	case MoveType::ROOK_MOVE:
-		if constexpr (data & 0b111)
-			capture_move<white, ROOK, data>(m, pos.board);
-		else
-			plain_move<white, ROOK>(m, pos.board);
-		// Remove castling rights.
-	}
-
-	pos.white_turn = !pos.white_turn;
-}
-
-template <bool white>
-void unmake_move(Move& move, Position& pos) {
-	pos.white_turn = !pos.white_turn;
-
-	switch (move.get_type()) {
-	case 0:
-		unmake_plain_move<white>(move, pos.board);
-		break;
-	case 1:
-		unmake_castle_move<white>(move, pos.board);
-		break;
-	case 2:
-		unmake_capture_move<white>(move, pos.board);
-		break;
-	case 3:
-		unmake_ep_move<white>(move, pos.board);
-		break;
-	case 4:
-		unmake_pawn_double<white>(move, pos.board, pos.gamestate);
-		break;
-	case 5:
-		unmake_promo_move<white, false>(move, pos.board);
-		break;
-	case 6:
-		unmake_promo_move<white, true>(move, pos.board);
-		break;
-	}
-
-	pos.gamestate = pos.history.pop();
-}
-
 #endif
