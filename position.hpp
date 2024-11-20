@@ -18,10 +18,10 @@ struct Position {
 	Stack<GameState> history;
 	Stack<Move> movelist;
 	bool white_turn = true;
-	bool is_equal(Position& other) {
-		return (white_turn == other.white_turn) && (gamestate.get_data() == other.gamestate.get_data())
-			&& board.is_equal(other.board);
-	}
+
+	bool is_equal(Position& other);
+	void moved();
+	void unmoved();
 
 	void print_position();
 };

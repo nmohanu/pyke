@@ -6,81 +6,63 @@
 #ifndef PIECE_MOVES_H
 #define PIECE_MOVES_H
 
+namespace piece_move {
+
 // King move.
-static inline uint64_t get_king_move(uint8_t square) { return KING_MOVE_SQUARES[square]; }
+static inline BitBoard get_king_move(Square square);
 // Knight move logic.
-static inline uint64_t get_knight_move(uint8_t square) { return KNIGHT_MOVE_SQUARES[square]; }
+static inline BitBoard get_knight_move(Square square);
 
 // Bishop moving logic.
-static inline uint64_t get_bishop_move(uint8_t square, const BitBoard& occ) {
-	uint64_t mask = bishop_mask_table[square];
-	uint64_t occupancy = occ & mask;
-	occupancy *= bishop_magic_numbers[63 - square];
-	occupancy >>= (64 - __builtin_popcountll(mask));
-	return bishop_attacks[square][occupancy];
-}
+static inline BitBoard get_bishop_move(Square square, const BitBoard& occ);
 
 // Rook move logic.
-static inline uint64_t get_rook_move(uint8_t square, const BitBoard& occ) {
-	uint64_t mask = rook_mask_table[square];
-	uint64_t occupancy = occ & mask;
-	occupancy *= rook_magic_numbers[63 - square];
-	occupancy >>= (64 - __builtin_popcountll(mask));
-	return rook_attacks[square][occupancy];
-}
+static inline BitBoard get_rook_move(Square square, const BitBoard& occ);
 
 // Queen move logic.
-static inline uint64_t get_queen_move(uint8_t square, const BitBoard& occ) {
-	return get_bishop_move(square, occ) | get_rook_move(square, occ);
-}
+static inline BitBoard get_queen_move(Square square, const BitBoard& occ);
 
 // Only the attack squares. Used to check if king is checked by pawn.
 template <bool white>
-static inline uint64_t get_pawn_attacks(uint64_t board, uint8_t square) {
-	if (white) return ((board << 9) | (board << 7)) & (0xFFULL << (64 - (square - square % 8)));
-	return (board >> 9) | (board >> 7) & (0xFFULL << (48 - (square - square % 8)));
-}
-
-// Black pawn.
-static inline uint64_t get_pawn_move_black(uint8_t square) {
-	uint64_t move_board = 0b0;
-	move_board |= ((1ULL << ((63 - square) + 8)));
-	// Attacks.
-	move_board |= ((1ULL << (63 - square + 9) | 1ULL << (63 - square + 7))) & (0xFFULL << (48 - (square - square % 8)));
-	return move_board;
-}
-
-// White pawn.
-static inline uint64_t get_pawn_move_white(uint8_t square) {
-	uint64_t move_board = 0b0;
-	move_board |= 1ULL << ((63 - square) - 8);
-	// Attacks.
-	move_board |= (1ULL << (63 - square - 9) | 1ULL << (63 - square - 7)) & (0xFFULL << (64 - (square - square % 8)));
-	;
-	return move_board;
-}
-
-// Pawn moving.
-template <bool white>
-static inline uint64_t get_pawn_move(uint8_t square) {
-	if (white)
-		return get_pawn_move_white(square);
+static inline BitBoard get_pawn_attacks(const BitBoard& piece_board) {
+	if constexpr (white)
+		return ((piece_board << 9) | (piece_board << 7));
 	else
-		return get_pawn_move_black(square);
+		return (piece_board >> 9) | (piece_board >> 7);
+}
+
+template <bool white>
+static inline BitBoard get_pawn_forward(const BitBoard& piece_board) {
+	if constexpr (white)
+		return piece_board << 8;
+	else
+		return piece_board >> 8;
 }
 
 // Pawn move including double push.
 template <bool white>
-static inline uint64_t get_pawn_double(uint8_t square) {
-	uint64_t ret;
-	if (white) {
-		ret = 1ULL << ((63 - square) - 8);
-		ret &= ((ret >> 8) & (0xFFULL << 32));
-	} else {
-		ret = ((1ULL << ((63 - square) + 8)));
-		ret &= (((ret << 8) & (0xFFULL << 24)));
-	}
-	return ret;
+static inline BitBoard get_pawn_double(const BitBoard& piece_board) {
+	return get_pawn_forward<white>(get_pawn_forward<white>(piece_board));
 }
+
+template <bool white, PawnMoveType type>
+BitBoard get_pawn_move(Square s) {
+	BitBoard p_board = square_to_mask(s);
+	switch (type) {
+	case PawnMoveType::ATTACKS:
+		return get_pawn_attacks<white>(p_board);
+	case PawnMoveType::FORWARD:
+		return get_pawn_forward<white>(p_board);
+	case PawnMoveType::NON_DOUBLE:
+		return get_pawn_attacks<white>(p_board) | get_pawn_forward<white>(p_board);
+	case PawnMoveType::DOUBLE_FORWARD:
+		return get_pawn_double<white>(p_board);
+	case PawnMoveType::ALL:
+		return get_pawn_move<white, PawnMoveType::NON_DOUBLE>(s)
+			| get_pawn_move<white, PawnMoveType::DOUBLE_FORWARD>(s);
+	}
+}
+
+}  // namespace piece_move
 
 #endif	// !DEBUG

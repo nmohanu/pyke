@@ -1,6 +1,7 @@
 // Default boards.
 #include <array>
 #include <cstdint>
+#include <unordered_map>
 
 #ifndef DEFAULTS_H
 #define DEFAULTS_H
@@ -41,7 +42,10 @@ constexpr uint64_t INIT_WHITE_PIECES = 0b000000000000000000000000000000000000000
 #define MOVE_PROMO		   5
 #define MOVE_PROMO_CAPTURE 6
 
-enum class MoveType { PLAIN, CASTLE, PAWN_MOVE, KING_MOVE, ROOK_MOVE };
+enum class MoveType { PLAIN, CAPTURE, CASTLE, PAWN_DOUBLE, PROMO, EP };
+enum class PawnMoveType { ATTACKS, FORWARD, DOUBLE_FORWARD, NON_DOUBLE, ALL };
+
+const std::unordered_map<Square, uint8_t> get_castle_code{{62, 0}, {58, 1}, {6, 2}, {2, 3}};
 
 constexpr BitBoard promotion_from_w = (0b1111'1111ULL << 48);
 constexpr BitBoard promotion_from_b = (0b1111'1111ULL << 8);

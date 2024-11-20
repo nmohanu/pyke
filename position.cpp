@@ -2,6 +2,21 @@
 
 #include <iostream>
 
+bool Position::is_equal(Position& other) {
+	return (white_turn == other.white_turn) && (gamestate.get_data() == other.gamestate.get_data())
+		&& board.is_equal(other.board);
+}
+
+void Position::moved() {
+	history.push(gamestate);
+	white_turn = !white_turn;
+}
+
+void Position::unmoved() {
+	gamestate = history.pop();
+	white_turn = !white_turn;
+}
+
 void Position::print_position() {
 	std::cout << "   a b c d e f g h" << std::endl;
 	std::cout << " +-----------------+" << std::endl;
