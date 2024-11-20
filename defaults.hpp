@@ -12,7 +12,6 @@ typedef uint64_t BitBoard;
 typedef uint8_t Flag;
 typedef uint8_t Rank;
 typedef uint8_t File;
-typedef uint8_t MoveType;
 
 // Default bitboards.
 constexpr uint64_t INIT_ROOK_SQUARES = 0b1000000100000000000000000000000000000000000000000000000010000001ULL;
@@ -26,13 +25,13 @@ constexpr uint64_t INIT_TOTAL_SQUARES = 0b11111111111111110000000000000000000000
 constexpr uint64_t INIT_WHITE_PIECES = 0b0000000000000000000000000000000000000000000000001111111111111111ULL;
 
 // Pieces.
-#define PAWN   0
-#define KING   1
-#define ROOK   2
-#define BISHOP 3
-#define KNIGHT 4
-#define QUEEN  5
-#define EMPTY  6
+#define PAWN   1
+#define KING   2
+#define ROOK   3
+#define BISHOP 4
+#define KNIGHT 5
+#define QUEEN  6
+#define EMPTY  0
 // Move types.
 #define MOVE_PLAIN		   0
 #define MOVE_CASTLE		   1
@@ -41,6 +40,8 @@ constexpr uint64_t INIT_WHITE_PIECES = 0b000000000000000000000000000000000000000
 #define MOVE_PAWN_DOUBLE   4
 #define MOVE_PROMO		   5
 #define MOVE_PROMO_CAPTURE 6
+
+enum class MoveType { PLAIN, CASTLE, PAWN_MOVE, KING_MOVE, ROOK_MOVE };
 
 constexpr BitBoard promotion_from_w = (0b1111'1111ULL << 48);
 constexpr BitBoard promotion_from_b = (0b1111'1111ULL << 8);
