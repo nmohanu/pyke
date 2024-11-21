@@ -7,14 +7,14 @@
 #include "pyke.hpp"
 
 template <int depth>
-int perft_internal(Position& pos) {
+static int perft_internal(Position& pos) {
 	clock_t start = clock();
 	uint64_t nodes;
 
 	if (pos.white_turn)
-		nodes = pyke::count_moves<true, depth>(pos);
+		nodes = pyke::count_moves<true, depth, true>(pos);
 	else
-		nodes = pyke::count_moves<false, depth>(pos);
+		nodes = pyke::count_moves<false, depth, true>(pos);
 
 	clock_t end = clock();
 	double time_cost = double(end - start) / CLOCKS_PER_SEC;
@@ -24,7 +24,7 @@ int perft_internal(Position& pos) {
 	return nodes;
 }
 
-int perft(Position& pos, int depth) {
+static int perft(Position& pos, int depth) {
 	switch (depth) {
 	case 0:
 		return 1;

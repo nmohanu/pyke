@@ -33,25 +33,17 @@ constexpr uint64_t INIT_WHITE_PIECES = 0b000000000000000000000000000000000000000
 #define KNIGHT 5
 #define QUEEN  6
 #define EMPTY  0
-// Move types.
-#define MOVE_PLAIN		   0
-#define MOVE_CASTLE		   1
-#define MOVE_CAPTURE	   2
-#define MOVE_EP			   3
-#define MOVE_PAWN_DOUBLE   4
-#define MOVE_PROMO		   5
-#define MOVE_PROMO_CAPTURE 6
 
 enum class MoveType { PLAIN, CAPTURE, CASTLE, PAWN_DOUBLE, PROMO, EP };
 enum class PawnMoveType { ATTACKS, FORWARD, DOUBLE_FORWARD, NON_DOUBLE, ALL };
 
 const std::unordered_map<Square, uint8_t> get_castle_code{{62, 0}, {58, 1}, {6, 2}, {2, 3}};
 
-constexpr BitBoard promotion_from_w = (0b1111'1111ULL << 48);
-constexpr BitBoard promotion_from_b = (0b1111'1111ULL << 8);
 constexpr BitBoard promotion_to_squares = (0b1111'1111ULL) | (0b1111'1111ULL << 56);
-constexpr BitBoard pawn_start_w = 1111'1111ULL << (8);
-constexpr BitBoard pawn_start_b = 1111'1111ULL << (48);
+constexpr BitBoard pawn_start_w = INIT_PAWN_SQUARES & INIT_WHITE_PIECES;
+constexpr BitBoard pawn_start_b = INIT_PAWN_SQUARES & INIT_BLACK_PIECES;
+constexpr BitBoard promotion_from_w = pawn_start_b;
+constexpr BitBoard promotion_from_b = pawn_start_w;
 
 constexpr uint8_t king_start_squares[4] = {60, 60, 4, 4};
 constexpr uint8_t rook_start_squares[4] = {63, 56, 7, 0};

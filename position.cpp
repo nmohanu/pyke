@@ -19,7 +19,7 @@ void Position::print_position() {
 		for (int col = 0; col < 8; col++) {
 			Square square = (7 - row) * 8 + col;
 			bool white = board.w_board & square_to_mask(square);
-			uint8_t piece_type = white ? board.get_piece<true, false>(square) : board.get_piece<false, false>(square);
+			uint8_t piece_type = white ? board.get_piece<true>(square) : board.get_piece<false>(square);
 			char piece;
 			switch (piece_type) {
 			case KING:

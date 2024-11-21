@@ -49,6 +49,7 @@ inline uint8_t pop(uint64_t& b) {
 	return index;
 }
 
+/*
 static std::string move_to_string(Move move) {
 	std::string start_notation = make_chess_notation(move.get_from());
 	std::string destination_notation = make_chess_notation(move.get_to());
@@ -73,6 +74,7 @@ static std::string move_to_string(Move move) {
 	}
 	return start_notation + destination_notation + promotion_letter;
 }
+*/
 
 constexpr static inline uint8_t square_to_shamt(Square s) { return 63 - s; }
 

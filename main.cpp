@@ -3,12 +3,13 @@
 #include "perft.hpp"
 #include "pyke.hpp"
 
-using namespace Pyke;
+using namespace pyke;
 
 int main(int argc, char* argv[]) {
 	std::cout << "Pyke chess move generator by Nathanael Mohanu \n";
 	Position pos;
-	print_position(pos);
-	perft(4, pos);
+	pos.print_position();
+	perft(pos, 1);
+	pos.print_position();
 	return 0;
 }

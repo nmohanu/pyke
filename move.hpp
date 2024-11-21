@@ -7,6 +7,7 @@
 
 struct Move {
 	Move() {};
+	/*
 	Move(MoveType t, Piece p) {
 		set_type(t);
 		set_piece(p);
@@ -29,7 +30,7 @@ struct Move {
 	inline MoveType get_type() const { return data & 0b101; }
 	inline uint8_t get_content() const { return (data >> 6) & 0b1111; }
 	inline Piece get_piece() const { return (data >> 11) & 0b111; }
-
+*/
 private:
 	uint32_t data = 0b0;
 };
