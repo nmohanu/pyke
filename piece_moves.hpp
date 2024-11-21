@@ -38,10 +38,9 @@ inline BitBoard get_queen_move(Square square, const BitBoard& occ) {
 // Only the attack squares. Used to check if king is checked by pawn.
 template <bool white>
 static inline BitBoard get_pawn_attacks(const BitBoard& piece_board, Board& b) {
-	if constexpr (white)
-		return ((piece_board << 9) | (piece_board << 7)) & b.get_player_occ<!white>();
-	else
-		return ((piece_board >> 9) | (piece_board >> 7)) & b.get_player_occ<!white>();
+	Square s = __builtin_clzll(piece_board);
+	if constexpr (white) return ((piece_board << 9) | (piece_board << 7)) & (0xFFULL << (64 - (s - s % 8)));
+	return ((piece_board >> 9) | (piece_board >> 7)) & (0xFFULL << (64 - (s - s % 8) - 16));
 }
 
 template <bool white>
@@ -54,8 +53,9 @@ static inline BitBoard get_pawn_forward(const BitBoard& piece_board) {
 
 // Pawn move including double push.
 template <bool white>
-static inline BitBoard get_pawn_double(const BitBoard& piece_board) {
-	return get_pawn_forward<white>(get_pawn_forward<white>(piece_board));
+static inline BitBoard get_pawn_double(const BitBoard& piece_board, BitBoard& occ) {
+	BitBoard single = get_pawn_forward<white>(piece_board) & ~occ;
+	return get_pawn_forward<white>(single);
 }
 
 template <bool white, PawnMoveType type>
@@ -69,7 +69,7 @@ inline BitBoard get_pawn_move(Square s, Board& b) {
 	case PawnMoveType::NON_DOUBLE:
 		return get_pawn_attacks<white>(p_board, b) | get_pawn_forward<white>(p_board);
 	case PawnMoveType::DOUBLE_FORWARD:
-		return get_pawn_double<white>(p_board);
+		return get_pawn_double<white>(p_board, b.occ_board);
 	case PawnMoveType::ALL:
 		return get_pawn_move<white, PawnMoveType::NON_DOUBLE>(s, b)
 			| get_pawn_move<white, PawnMoveType::DOUBLE_FORWARD>(s, b);

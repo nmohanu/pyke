@@ -243,7 +243,7 @@ static void move_from_string(std::string m, Position& p) {
 	Square from = notation_to_square(m.substr(0, 2));
 	Square to = notation_to_square(m.substr(2, 2));
 	std::cout << "move " << m << " from " << unsigned(from) << " to " << unsigned(to) << '\n';
-	bool white = square_to_mask(from) & p.board.get_player_occ<true>();
+	bool white = p.white_turn;
 	Piece captured_b = p.board.get_piece<true>(to);
 	Piece captured_w = p.board.get_piece<false>(to);
 
@@ -255,7 +255,7 @@ static void move_from_string(std::string m, Position& p) {
 		remove_from_board(p.board, to, captured_b, false);
 	}
 
-	move_piece(from, to, p.board, white, move_w == EMPTY ? p.board.get_piece<false>(to) : move_w);
+	move_piece(from, to, p.board, white, move_w == EMPTY ? p.board.get_piece<false>(from) : move_w);
 
 	p.white_turn = !p.white_turn;
 }

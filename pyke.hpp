@@ -29,7 +29,7 @@ static inline bool is_attacked(Square square, Board& b) {
 	return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, b) & b.get_piece_board<!white, PAWN>())
 		|| (get_knight_move(square) & b.get_piece_board<!white, KNIGHT>())
 		|| (get_rook_move(square, c) & (b.get_piece_board<!white, ROOK>() | b.get_piece_board<!white, QUEEN>()))
-		|| (get_bishop_move(square, c) & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<white, QUEEN>()))
+		|| (get_bishop_move(square, c) & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<!white, QUEEN>()))
 		|| (get_king_move(square) & b.get_piece_board<!white, KING>());
 }
 
@@ -179,22 +179,28 @@ static inline int generate_king_moves(BitBoard cmt, Square king_square, Position
 	int ret = 0;
 	while (cmt) {
 		Square to = pop(cmt);
-		if (is_attacked<white>(to, pos.board))
+		int n = 0;
+		if (is_attacked<white>(to, pos.board)) {
+			std::cout << "check";
 			continue;
-		else if constexpr (depth_to_go <= 1)
-			ret += 1;
+		} else if constexpr (depth_to_go <= 1)
+			n += 1;
 		else {
 			if (pos.board.square_occ(to)) {
 				Piece captured = pos.board.get_piece<white>(to);
 				capture_move_wrapper<white, KING>(king_square, to, pos, captured);
-				ret += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+				n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
 			} else {
 				plain_move<white, KING>(king_square, to, pos);
-				ret += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+				n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_plain_move<white, KING>(king_square, to, pos);
 			}
 		}
+		if constexpr (print_move)
+			std::cout << make_chess_notation(king_square) << make_chess_notation(to) << ": " << std::to_string(n)
+					  << '\n';
+		ret += n;
 	}
 	return ret;
 }
@@ -205,11 +211,10 @@ static inline int generate_pawn_double(BitBoard cmt, Position& pos, BitBoard sou
 	int ret = 0;
 	while (source) {
 		Square from = pop(source);
-		BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from));
+		BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
 		while (to_board) {
 			Square to = pop(to_board);
 			int n = 0;
-			if constexpr (print_move) std::cout << make_chess_notation(from) << make_chess_notation(to) << ": ";
 			if constexpr (depth_to_go <= 1)
 				n += 1;
 			else {
@@ -217,7 +222,9 @@ static inline int generate_pawn_double(BitBoard cmt, Position& pos, BitBoard sou
 				n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_pawn_double<white>(from, to, pos);
 			}
-			if constexpr (print_move) std::cout << std::to_string(n) << '\n';
+
+			if constexpr (print_move)
+				std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n) << '\n';
 			ret += n;
 		}
 	}
@@ -262,7 +269,6 @@ static inline int generate_move_or_capture(BitBoard cmt, Square from, Position& 
 	while (cmt) {
 		int n = 0;
 		Square to = pop(cmt);
-		if constexpr (print_move) std::cout << make_chess_notation(from) << make_chess_notation(to) << ": ";
 		if constexpr (depth_to_go <= 1)
 			n += 1;
 		else if constexpr (capture) {
@@ -277,7 +283,9 @@ static inline int generate_move_or_capture(BitBoard cmt, Square from, Position& 
 			n += count_moves<!white, depth_to_go - 1, false>(pos);
 			unmake_plain_move<white, p>(from, to, pos);
 		}
-		if constexpr (print_move) std::cout << std::to_string(n) << '\n';
+
+		if constexpr (print_move)
+			std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n) << '\n';
 		ret += n;
 	}
 	return ret;
@@ -298,9 +306,18 @@ static inline int generate_moves(BitBoard cmt, BitBoard& pieces, Position& pos) 
 	// For all instances of given piece.
 	while (pieces) {
 		Square from = pop(pieces);
-		BitBoard piece_moves_to = cmt & make_reach_board<white, p>(from, pos.board);
-		BitBoard captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
-		BitBoard non_captures = piece_moves_to & ~captures;
+		BitBoard captures;
+		BitBoard non_captures;
+		if constexpr (p == PAWN) {
+			non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board)
+				& ~pos.board.get_player_occ<!white>();
+			captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board)
+				& pos.board.get_player_occ<!white>();
+		} else {
+			BitBoard piece_moves_to = cmt & make_reach_board<white, p>(from, pos.board);
+			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
+			non_captures = piece_moves_to & ~captures;
+		}
 
 		// Non-captures.
 		ret += generate_move_or_capture<white, p, false, depth_to_go, print_move>(non_captures, from, pos);
