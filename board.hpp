@@ -59,8 +59,8 @@ struct Board {
 
 	// Returns the player's occupacion board.
 	template <bool white>
-	inline BitBoard get_player_occ(Board& board) {
-		return white ? board.w_board : board.b_board;
+	inline BitBoard get_player_occ() {
+		return white ? w_board : b_board;
 	}
 
 	template <bool white, Piece p>
@@ -85,18 +85,19 @@ struct Board {
 	template <bool white, Piece p>
 	inline BitBoard get_piece_board() {
 		auto* b = get_board_pointer<white, p>();
-		return p == EMPTY ? 0xFFFF'FFFF'FFFF'FFFF : b;
+		return p == EMPTY ? 0xFFFF'FFFF'FFFF'FFFF : *b;
 	}
 
 	// Returns the piece on the square or EMPTY by defualt.
-	template <bool white, bool only_captureable>
+	template <bool white>
 	inline Piece get_piece(Square square) {
-		auto begin = only_captureable ? non_king_pieces.begin() : pieces.begin();
-		auto end = only_captureable ? non_king_pieces.begin() : pieces.begin();
-		auto const piece = std::__find_if(begin, end, [&](auto const& p) {
-			return *get_piece_board<white, p>() & square_to_mask(square);
-		});
-		return *piece;
+		BitBoard mask = square_to_mask(square);
+		if (get_piece_board<white, PAWN>() & mask) return PAWN;
+		if (get_piece_board<white, KNIGHT>() & mask) return KNIGHT;
+		if (get_piece_board<white, BISHOP>() & mask) return BISHOP;
+		if (get_piece_board<white, ROOK>() & mask) return ROOK;
+		if (get_piece_board<white, QUEEN>() & mask) return QUEEN;
+		return EMPTY;
 	}
 
 	// Returns whether a square is occupied or not.

@@ -7,15 +7,9 @@ bool Position::is_equal(Position& other) {
 		&& board.is_equal(other.board);
 }
 
-void Position::moved() {
-	history.push(gamestate);
-	white_turn = !white_turn;
-}
+void Position::moved() { history.push(gamestate); }
 
-void Position::unmoved() {
-	gamestate = history.pop();
-	white_turn = !white_turn;
-}
+void Position::unmoved() { gamestate = history.pop(); }
 
 void Position::print_position() {
 	std::cout << "   a b c d e f g h" << std::endl;

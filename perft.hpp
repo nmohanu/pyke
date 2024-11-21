@@ -21,6 +21,7 @@ int perft_internal(Position& pos) {
 	std::cout << "PERFT results: \nNodes evaluated: " << nodes << "\nTime cost: " << time_cost << '\n';
 	std::cout << std::round((nodes / 1000000)) / time_cost << " Million nodes per second" << '\n';
 	std::cout << "================================================================================ \n";
+	return nodes;
 }
 
 int perft(Position& pos, int depth) {
@@ -49,5 +50,6 @@ int perft(Position& pos, int depth) {
 		return perft_internal<10>(pos);
 	default:
 		std::cout << "Depth above 10 not supported." << std::endl;
+		return 0;
 	}
 }

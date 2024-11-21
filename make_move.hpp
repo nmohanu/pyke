@@ -41,13 +41,14 @@ static void move_piece(Square from, Square to, Board& b) {
 // Undo a piece move.
 template <bool white, Piece p>
 static void unmake_move_piece(Square from, Square to, Board& b) {
-	remove_from_board<white>(b, to, p);
-	add_to_board<white>(b, from, p);
+	remove_from_board<white, p>(b, to);
+	add_to_board<white, p>(b, from);
 }
 
 // Do a plain, non capturing move.
 template <bool white, Piece p>
 static void plain_move(Square from, Square to, Position& pos) {
+	if constexpr (p == KING) pos.gamestate.rm_cr<white>();
 	pos.moved();
 	move_piece<white, p>(from, to, pos.board);
 }
@@ -64,21 +65,22 @@ template <bool white, uint8_t code>
 static void castle_move(Position& pos) {
 	pos.gamestate.rm_cr<white>();
 	pos.moved();
-	move_piece<white>(king_start_squares[code], king_end_squares[code], KING, pos.board);
-	move_piece<white>(rook_start_squares[code], rook_end_squares[code], ROOK, pos.board);
+	move_piece<white, KING>(king_start_squares[code], king_end_squares[code], pos.board);
+	move_piece<white, ROOK>(rook_start_squares[code], rook_end_squares[code], pos.board);
 }
 
 // Undo castling move.
 template <bool white, uint8_t code>
 static void unmake_castle_move(Position& pos) {
 	pos.unmoved();
-	unmake_move_piece<white>(king_start_squares[code], king_end_squares[code], KING, pos.unmoved());
-	unmake_move_piece<white>(rook_start_squares[code], rook_end_squares[code], ROOK, pos.unmoved());
+	unmake_move_piece<white, KING>(king_start_squares[code], king_end_squares[code], pos.board);
+	unmake_move_piece<white, ROOK>(rook_start_squares[code], rook_end_squares[code], pos.board);
 }
 
 // Do capture move.
 template <bool white, Piece p, Piece captured>
 static void capture_move(Square from, Square to, Position& pos) {
+	if constexpr (p == KING) pos.gamestate.rm_cr<white>();
 	pos.moved();
 	remove_from_board<!white, captured>(pos.board, to);
 	move_piece<white, p>(from, to, pos.board);
@@ -106,7 +108,7 @@ template <bool white>
 static void unmake_ep_move(Square from, Square to, Position& pos) {
 	pos.unmoved();
 	Square captured_sq = white ? (to - 8) : (to + 8);
-	unmake_move_piece<white, PAWN>(from, to, PAWN, pos.board);
+	unmake_move_piece<white, PAWN>(from, to, pos.board);
 	add_to_board<white, PAWN>(pos.board, captured_sq);
 }
 
