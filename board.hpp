@@ -81,6 +81,24 @@ struct Board {
 		}
 	}
 
+	inline BitBoard* get_board_pointer(bool white, Piece p) {
+		switch (p) {
+		case PAWN:
+			return white ? &w_pawn : &b_pawn;
+		case KING:
+			return white ? &w_king : &b_king;
+		case ROOK:
+			return white ? &w_rook : &b_rook;
+		case BISHOP:
+			return white ? &w_bishop : &b_bishop;
+		case KNIGHT:
+			return white ? &w_knight : &b_knight;
+		case QUEEN:
+			return white ? &w_queen : &b_queen;
+		}
+		throw std::invalid_argument("Board does not exist.");
+	}
+
 	// Gets the board for a given color and piece.
 	template <bool white, Piece p>
 	inline BitBoard get_piece_board() {

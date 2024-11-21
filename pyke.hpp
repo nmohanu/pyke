@@ -214,7 +214,7 @@ static inline int generate_pawn_double(BitBoard cmt, Position& pos, BitBoard sou
 				n += 1;
 			else {
 				pawn_double<white>(from, to, pos);
-				n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+				n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_pawn_double<white>(from, to, pos);
 			}
 			if constexpr (print_move) std::cout << std::to_string(n) << '\n';
@@ -269,12 +269,12 @@ static inline int generate_move_or_capture(BitBoard cmt, Square from, Position& 
 			// Capture moves.
 			const Piece captured = pos.board.get_piece<white>(to);
 			capture_move_wrapper<white, p>(from, to, pos, captured);
-			n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+			n += count_moves<!white, depth_to_go - 1, false>(pos);
 			unmake_capture_wrapper<white, p>(from, to, pos, captured);
 		} else {
 			// Plain, non special moves.
 			plain_move<white, p>(from, to, pos);
-			n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+			n += count_moves<!white, depth_to_go - 1, false>(pos);
 			unmake_plain_move<white, p>(from, to, pos);
 		}
 		if constexpr (print_move) std::cout << std::to_string(n) << '\n';
@@ -335,7 +335,7 @@ static inline int generate_any(Position& pos, MaskSet& maskset) {
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
 int count_moves(Position& pos) {
-	if constexpr (depth_to_go <= 0) return 1;
+	if constexpr (depth_to_go <= 0) return 0;
 	int ret = 0;
 	// Make king mask.
 	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());

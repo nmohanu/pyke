@@ -1,5 +1,7 @@
 
 #include <cstdint>
+#include <iostream>
+#include <string>
 
 #include "defaults.hpp"
 #include "position.hpp"
@@ -207,6 +209,55 @@ static void unmake_capture_wrapper(Square from, Square to, Position& pos, Piece 
 		unmake_capture_move<white, p, QUEEN>(from, to, pos);
 		break;
 	}
+}
+
+// Add piece to board.
+static void add_to_board(Board& b, Square s, Piece p, bool white) {
+	BitBoard mask = square_to_mask(s);
+	*b.get_board_pointer(white, p) |= mask;
+	b.occ_board |= mask;
+	if (white)
+		b.w_board |= mask;
+	else
+		b.b_board |= mask;
+}
+
+// Remove piece from board.
+static void remove_from_board(Board& b, Square s, Piece p, bool white) {
+	BitBoard mask = ~square_to_mask(s);
+	*b.get_board_pointer(white, p) &= mask;
+	b.occ_board &= mask;
+	if (white)
+		b.w_board &= mask;
+	else
+		b.b_board &= mask;
+}
+
+// Move a piece.
+static void move_piece(Square from, Square to, Board& b, bool white, Piece p) {
+	remove_from_board(b, from, p, white);
+	add_to_board(b, to, p, white);
+}
+
+static void move_from_string(std::string m, Position& p) {
+	Square from = notation_to_square(m.substr(0, 2));
+	Square to = notation_to_square(m.substr(2, 2));
+	std::cout << "move " << m << " from " << unsigned(from) << " to " << unsigned(to) << '\n';
+	bool white = square_to_mask(from) & p.board.get_player_occ<true>();
+	Piece captured_b = p.board.get_piece<true>(to);
+	Piece captured_w = p.board.get_piece<false>(to);
+
+	Piece move_w = p.board.get_piece<true>(from);
+
+	if (captured_w != EMPTY) {
+		remove_from_board(p.board, to, captured_w, true);
+	} else if (captured_b != EMPTY) {
+		remove_from_board(p.board, to, captured_b, false);
+	}
+
+	move_piece(from, to, p.board, white, move_w == EMPTY ? p.board.get_piece<false>(to) : move_w);
+
+	p.white_turn = !p.white_turn;
 }
 
 #endif

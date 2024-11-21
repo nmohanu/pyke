@@ -41,7 +41,7 @@ static inline BitBoard get_pawn_attacks(const BitBoard& piece_board, Board& b) {
 	if constexpr (white)
 		return ((piece_board << 9) | (piece_board << 7)) & b.get_player_occ<!white>();
 	else
-		return (piece_board >> 9) | (piece_board >> 7) & b.get_player_occ<!white>();
+		return ((piece_board >> 9) | (piece_board >> 7)) & b.get_player_occ<!white>();
 }
 
 template <bool white>
