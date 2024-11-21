@@ -55,7 +55,7 @@ static inline BitBoard get_pawn_forward(const BitBoard& piece_board) {
 template <bool white>
 static inline BitBoard get_pawn_double(const BitBoard& piece_board, BitBoard& occ) {
 	BitBoard single = get_pawn_forward<white>(piece_board) & ~occ;
-	return get_pawn_forward<white>(single);
+	return get_pawn_forward<white>(single) & ~occ;
 }
 
 template <bool white, PawnMoveType type>

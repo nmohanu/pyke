@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -19,7 +20,7 @@
 namespace pyke {
 
 template <bool white, int depth_to_go, bool print_move>
-int count_moves(Position& pos);
+uint64_t count_moves(Position& pos);
 
 // Returns whether a square is under attack.
 template <bool white>
@@ -91,14 +92,14 @@ static MaskSet create_masks(Position& pos, Square king_square) {
 		bishop_mask_table[king_square] & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<!white, QUEEN>());
 
 	// Get only the pinners closest to the king.
-	ret.orth_pinners &= rook_attacks[ret.orth_pinners][king_square];
-	ret.dg_pinners &= bishop_attacks[ret.dg_pinners][king_square];
+	ret.orth_pinners &= piece_move::get_rook_move(king_square, ret.orth_pinners);
+	ret.dg_pinners &= piece_move::get_bishop_move(king_square, ret.dg_pinners);
 
 	// Make pinmask.
 	ret.pinmask_dg = make_pin_mask<white, true>(ret.dg_pinners, ret.king_dg, pos);
 	ret.pinmask_orth = make_pin_mask<white, false>(ret.orth_pinners, ret.king_orth, pos);
 
-	// Check there are pieces directly attacking the king.
+	// Check if there are pieces directly attacking the king.
 	ret.orth_checkers = ret.king_orth & ret.orth_pinners;
 	ret.dg_checkers = ret.king_dg & ret.dg_pinners;
 	ret.kn_checkers = ret.king_kn & b.get_piece_board<!white, KNIGHT>();
@@ -108,8 +109,8 @@ static MaskSet create_masks(Position& pos, Square king_square) {
 }
 
 template <bool white, int depth_to_go, bool print_move>
-static inline int generate_ep_moves(Position& pos, Square king_sq) {
-	int ret = 0;
+static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
+	uint64_t ret = 0;
 	uint8_t ep = pos.gamestate.get_en_passant();
 	// In most cases, no ep is possible.
 	if (!ep) return 0;
@@ -146,7 +147,7 @@ static inline int generate_ep_moves(Position& pos, Square king_sq) {
 
 // Create the castling move for given player and direction.
 template <bool white, bool kingside, int depth_to_go, bool print_move>
-static inline int generate_castle_move(Position& pos, Square king_square) {
+static inline uint64_t generate_castle_move(Position& pos, Square king_square) {
 	Board& b = pos.board;
 
 	bool has_right = white ? pos.gamestate.can_castle_king<white>() : pos.gamestate.can_castle_queen<white>();
@@ -174,14 +175,13 @@ static inline int generate_castle_move(Position& pos, Square king_square) {
 
 // Create king moves.
 template <bool white, int depth_to_go, bool print_move>
-static inline int generate_king_moves(BitBoard cmt, Square king_square, Position& pos) {
+static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Position& pos) {
 	cmt &= piece_move::get_king_move(king_square);
-	int ret = 0;
+	uint64_t ret = 0;
 	while (cmt) {
 		Square to = pop(cmt);
-		int n = 0;
+		uint64_t n = 0;
 		if (is_attacked<white>(to, pos.board)) {
-			std::cout << "check";
 			continue;
 		} else if constexpr (depth_to_go <= 1)
 			n += 1;
@@ -189,11 +189,11 @@ static inline int generate_king_moves(BitBoard cmt, Square king_square, Position
 			if (pos.board.square_occ(to)) {
 				Piece captured = pos.board.get_piece<white>(to);
 				capture_move_wrapper<white, KING>(king_square, to, pos, captured);
-				n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+				n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
 			} else {
 				plain_move<white, KING>(king_square, to, pos);
-				n += 1 + count_moves<!white, depth_to_go - 1, false>(pos);
+				n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_plain_move<white, KING>(king_square, to, pos);
 			}
 		}
@@ -207,14 +207,14 @@ static inline int generate_king_moves(BitBoard cmt, Square king_square, Position
 
 // Pawn double pushes.
 template <bool white, int depth_to_go, bool print_move>
-static inline int generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
-	int ret = 0;
+static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
+	uint64_t ret = 0;
 	while (source) {
 		Square from = pop(source);
 		BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
 		while (to_board) {
 			Square to = pop(to_board);
-			int n = 0;
+			uint64_t n = 0;
 			if constexpr (depth_to_go <= 1)
 				n += 1;
 			else {
@@ -233,7 +233,7 @@ static inline int generate_pawn_double(BitBoard cmt, Position& pos, BitBoard sou
 
 // Generate all possible promotion moves.
 template <bool white, int depth_to_go, bool print_move>
-static inline int generate_promotions(Position& pos, BitBoard cmt, BitBoard source) {
+static inline uint64_t generate_promotions(Position& pos, BitBoard cmt, BitBoard source) {
 	return 0;
 	/*
 	const auto generate_promo_pieces = [&](const Piece piece, const Piece captured, Square from, Square to) {
@@ -264,16 +264,16 @@ static inline int generate_promotions(Position& pos, BitBoard cmt, BitBoard sour
 
 // Push moves from a given position to the target squares.
 template <bool white, Piece p, bool capture, int depth_to_go, bool print_move>
-static inline int generate_move_or_capture(BitBoard cmt, Square from, Position& pos) {
-	int ret = 0;
+static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Position& pos) {
+	uint64_t ret = 0;
 	while (cmt) {
-		int n = 0;
+		uint64_t n = 0;
 		Square to = pop(cmt);
 		if constexpr (depth_to_go <= 1)
 			n += 1;
 		else if constexpr (capture) {
 			// Capture moves.
-			const Piece captured = pos.board.get_piece<white>(to);
+			const Piece captured = pos.board.get_piece<!white>(to);
 			capture_move_wrapper<white, p>(from, to, pos, captured);
 			n += count_moves<!white, depth_to_go - 1, false>(pos);
 			unmake_capture_wrapper<white, p>(from, to, pos, captured);
@@ -293,14 +293,14 @@ static inline int generate_move_or_capture(BitBoard cmt, Square from, Position& 
 
 // Create moves given a from and to board..
 template <bool white, Piece p, int depth_to_go, bool print_move>
-static inline int generate_moves(BitBoard cmt, BitBoard& pieces, Position& pos) {
-	int ret = 0;
+static inline uint64_t generate_moves(BitBoard cmt, BitBoard& pieces, Position& pos) {
+	uint64_t ret = 0;
 	// For pawns, handle special cases seperately.
 	if constexpr (p == PAWN) {
 		BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
 		BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
 		ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
-		ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
+		// ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
 		pieces &= ~pawns_on_promo;
 	}
 	// For all instances of given piece.
@@ -329,9 +329,9 @@ static inline int generate_moves(BitBoard cmt, BitBoard& pieces, Position& pos) 
 
 // For a given piece, generate all possible normal/capture moves.
 template <bool white, Piece p, int depth_to_go, bool print_move>
-static inline int generate_any(Position& pos, MaskSet& maskset) {
+static inline uint64_t generate_any(Position& pos, MaskSet& maskset) {
 	Board& b = pos.board;
-	int ret = 0;
+	uint64_t ret = 0;
 	BitBoard can_move_from = b.get_piece_board<white, p>();
 	// Split pinned pieces from non-pinned pieces.
 	BitBoard pinned_dg = can_move_from & maskset.king_dg & maskset.pinmask_dg;
@@ -351,9 +351,9 @@ static inline int generate_any(Position& pos, MaskSet& maskset) {
 
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
-int count_moves(Position& pos) {
+uint64_t count_moves(Position& pos) {
 	if constexpr (depth_to_go <= 0) return 0;
-	int ret = 0;
+	uint64_t ret = 0;
 	// Make king mask.
 	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
 	// Create all needed masks.
