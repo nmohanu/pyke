@@ -27,7 +27,7 @@ template <bool white>
 static inline bool is_attacked(Square square, Board& b) {
 	using namespace piece_move;
 	BitBoard& c = b.occ_board;
-	return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, b) & b.get_piece_board<!white, PAWN>())
+	return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, b.occ_board) & b.get_piece_board<!white, PAWN>())
 		|| (get_knight_move(square) & b.get_piece_board<!white, KNIGHT>())
 		|| (get_rook_move(square, c) & (b.get_piece_board<!white, ROOK>() | b.get_piece_board<!white, QUEEN>()))
 		|| (get_bishop_move(square, c) & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<!white, QUEEN>()))
@@ -40,7 +40,7 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 	BitBoard& occ = b.occ_board;
 	switch (piece) {
 	case PAWN:
-		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, b);
+		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, b.occ_board);
 	case KING:
 		return piece_move::get_king_move(square);
 	case ROOK:
@@ -58,7 +58,7 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 
 // Create pin masks.
 template <bool white, bool diagonal>
-static inline BitBoard make_pin_mask(BitBoard& pinners, BitBoard& king_mask, Position& pos) {
+static inline BitBoard make_pin_mask(BitBoard pinners, BitBoard king_mask, Position& pos) {
 	BitBoard pinmask = 0b0;
 	BitBoard queen_board = pos.board.get_piece_board<!white, QUEEN>();
 	BitBoard slider_board = pos.board.get_piece_board<!white, diagonal ? BISHOP : ROOK>();
@@ -78,11 +78,10 @@ static MaskSet create_masks(Position& pos, Square king_square) {
 	MaskSet ret;
 	ret.can_move_to = ~b.get_player_occ<white>();
 	// King reach.
-	ret.king_pw = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(king_square, b);
+	ret.king_pw = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(king_square, b.occ_board);
 	ret.king_kn = piece_move::get_knight_move(king_square);	 // A player can move only to empty or enemy squares.
 
 	// Get all potential pinner pieces.
-	//
 	ret.king_orth = piece_move::get_rook_move(king_square, c);
 	ret.orth_pinners =
 		rook_mask_table[king_square] & (b.get_piece_board<!white, ROOK>() | b.get_piece_board<!white, QUEEN>());
@@ -299,7 +298,7 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 
 // Create moves given a from and to board..
 template <bool white, Piece p, int depth_to_go, bool print_move>
-static inline uint64_t generate_moves(BitBoard cmt, BitBoard& pieces, Position& pos) {
+static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	uint64_t ret = 0;
 	// For pawns, handle special cases seperately.
 	if constexpr (p == PAWN) {
@@ -318,9 +317,9 @@ static inline uint64_t generate_moves(BitBoard cmt, BitBoard& pieces, Position& 
 			BitBoard captures;
 			BitBoard non_captures;
 			if constexpr (p == PAWN) {
-				non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board)
+				non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board.occ_board)
 					& ~pos.board.get_player_occ<!white>();
-				captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board)
+				captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board.occ_board)
 					& pos.board.get_player_occ<!white>();
 				if constexpr (depth_to_go <= 1) {
 					ret += __builtin_popcountll(non_captures) + __builtin_popcountll(captures);
@@ -366,7 +365,6 @@ static inline uint64_t generate_any(Position& pos, MaskSet& maskset) {
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos) {
-	if constexpr (depth_to_go <= 0) return 0;
 	uint64_t ret = 0;
 	// Make king mask.
 	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
@@ -374,10 +372,11 @@ uint64_t count_moves(Position& pos) {
 	MaskSet maskset = create_masks<white>(pos, king_square);
 	// Amount of checkers.
 	uint8_t checker_cnt = maskset.get_check_cnt();
+	ret += generate_king_moves<white, depth_to_go, print_move>(maskset.can_move_to, king_square, pos);
 	// Conditionals only taken when king is in check. If double check, only king can move. Else, limit the
 	// target squares to the checkmask and skip castling moves..
 	if (checker_cnt >= 2)
-		goto king;
+		return ret;
 	else if (checker_cnt) {
 		maskset.can_move_to &= maskset.get_check_mask();
 		goto no_castle;
@@ -394,8 +393,6 @@ no_castle:
 	ret += generate_any<white, PAWN, depth_to_go, print_move>(pos, maskset);
 	// ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);
 	// King and queen side castle.
-king:
-	ret += generate_king_moves<white, depth_to_go, print_move>(maskset.can_move_to, king_square, pos);
 	return ret;
 }
 

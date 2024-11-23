@@ -39,18 +39,16 @@ enum class PawnMoveType { ATTACKS, FORWARD, DOUBLE_FORWARD, NON_DOUBLE, ALL };
 
 const std::unordered_map<Square, uint8_t> get_castle_code{{62, 0}, {58, 1}, {6, 2}, {2, 3}};
 
-constexpr BitBoard promotion_to_squares = (0b1111'1111ULL) | (0b1111'1111ULL << 56);
-constexpr BitBoard pawn_start_w = INIT_PAWN_SQUARES & INIT_WHITE_PIECES;
-constexpr BitBoard pawn_start_b = INIT_PAWN_SQUARES & INIT_BLACK_PIECES;
-constexpr BitBoard promotion_from_w = pawn_start_b;
-constexpr BitBoard promotion_from_b = pawn_start_w;
-
-constexpr uint8_t king_start_squares[4] = {60, 60, 4, 4};
-constexpr uint8_t rook_start_squares[4] = {63, 56, 7, 0};
-constexpr uint8_t king_end_squares[4] = {62, 58, 6, 2};
-constexpr uint8_t rook_end_squares[4] = {61, 59, 5, 3};
-
-constexpr std::array<Piece, 6> non_king_pieces = {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, EMPTY};
-constexpr std::array<Piece, 7> pieces = {PAWN, KING, KNIGHT, BISHOP, ROOK, QUEEN, EMPTY};
+static inline constexpr BitBoard promotion_to_squares = (0b1111'1111ULL) | (0b1111'1111ULL << 56);
+static inline constexpr BitBoard pawn_start_w = INIT_PAWN_SQUARES & INIT_WHITE_PIECES;
+static inline constexpr BitBoard pawn_start_b = INIT_PAWN_SQUARES & INIT_BLACK_PIECES;
+static inline constexpr BitBoard promotion_from_w = pawn_start_b;
+static inline constexpr BitBoard promotion_from_b = pawn_start_w;
+static inline constexpr uint8_t king_start_squares[4] = {60, 60, 4, 4};
+static inline constexpr uint8_t rook_start_squares[4] = {63, 56, 7, 0};
+static inline constexpr uint8_t king_end_squares[4] = {62, 58, 6, 2};
+static inline constexpr uint8_t rook_end_squares[4] = {61, 59, 5, 3};
+static inline constexpr std::array<Piece, 6> non_king_pieces = {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, EMPTY};
+static inline constexpr std::array<Piece, 7> pieces = {PAWN, KING, KNIGHT, BISHOP, ROOK, QUEEN, EMPTY};
 
 #endif	// !DEFAULTS_H
