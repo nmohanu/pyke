@@ -1,3 +1,4 @@
+#include <ios>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -19,5 +20,6 @@ int main(int argc, char* argv[]) {
 	pos.print_position();
 	perft(pos, PERFT_TARGET - moves.size());
 	pos.print_position();
+
 	return 0;
 }
