@@ -322,7 +322,7 @@ static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& p
 				captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board.occ_board)
 					& pos.board.get_player_occ<!white>();
 				if constexpr (depth_to_go <= 1) {
-					ret += __builtin_popcountll(non_captures) + __builtin_popcountll(captures);
+					ret += __builtin_popcountll(non_captures | captures);
 					continue;
 				}
 			} else {
