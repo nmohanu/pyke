@@ -443,7 +443,7 @@ constexpr std::array<std::array<uint64_t, 512>, 64> create_bishop_attacks() {
 };
 
 // Attack table instances.
-const static std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
-const static std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
+inline const static std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
+inline const static std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
 
 #endif

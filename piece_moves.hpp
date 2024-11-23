@@ -9,12 +9,12 @@
 namespace piece_move {
 
 // King move.
-inline BitBoard get_king_move(Square square) { return KING_MOVE_SQUARES[square]; }
+constexpr static inline BitBoard get_king_move(Square square) { return KING_MOVE_SQUARES[square]; }
 // Knight move logic.
-inline BitBoard get_knight_move(Square square) { return KNIGHT_MOVE_SQUARES[square]; }
+constexpr static inline BitBoard get_knight_move(Square square) { return KNIGHT_MOVE_SQUARES[square]; }
 
 // Bishop moving logic.
-inline BitBoard get_bishop_move(Square square, const BitBoard& occ) {
+static inline BitBoard get_bishop_move(Square square, const BitBoard& occ) {
 	BitBoard mask = bishop_mask_table[square];
 	BitBoard occupancy = occ & mask;
 	occupancy *= bishop_magic_numbers[63 - square];
@@ -23,7 +23,7 @@ inline BitBoard get_bishop_move(Square square, const BitBoard& occ) {
 }
 
 // Rook move logic.
-inline BitBoard get_rook_move(Square square, const BitBoard& occ) {
+static inline BitBoard get_rook_move(Square square, const BitBoard& occ) {
 	BitBoard mask = rook_mask_table[square];
 	BitBoard occupancy = occ & mask;
 	occupancy *= rook_magic_numbers[63 - square];
@@ -32,7 +32,7 @@ inline BitBoard get_rook_move(Square square, const BitBoard& occ) {
 }
 
 // Queen move logic.
-inline BitBoard get_queen_move(Square square, const BitBoard& occ) {
+static inline BitBoard get_queen_move(Square square, const BitBoard& occ) {
 	return piece_move::get_bishop_move(square, occ) | piece_move::get_rook_move(square, occ);
 }
 // Only the attack squares. Used to check if king is checked by pawn.
@@ -59,7 +59,7 @@ static inline BitBoard get_pawn_double(const BitBoard& piece_board, BitBoard& oc
 }
 
 template <bool white, PawnMoveType type>
-inline BitBoard get_pawn_move(Square s, Board& b) {
+static inline BitBoard get_pawn_move(Square s, Board& b) {
 	BitBoard p_board = square_to_mask(s);
 	switch (type) {
 	case PawnMoveType::ATTACKS:
