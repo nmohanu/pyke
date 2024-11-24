@@ -20,8 +20,9 @@ struct Position {
 	bool white_turn = true;
 
 	bool is_equal(Position& other);
-	void moved();
-	void unmoved();
+
+	inline void moved() { history.push(gamestate); }
+	inline void unmoved() { gamestate = history.pop(); }
 
 	void print_position();
 };

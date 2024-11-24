@@ -32,19 +32,13 @@ template <typename T>
 struct Stack {
 	T stack[1024];
 	Stack() : last(stack) {};
-	void push(T val) {
-		if (last >= stack + 1024) throw std::out_of_range("Stack overflow");
-		*last++ = val;
-	}
+	void push(T val) { *last++ = val; }
 	T pop() {
 		if (last == stack) return *last;
 		return *(--last);
 	}
 	T* top() { return (last); }
-	MoveList<T> from(T* t) {
-		if (t < stack || t > last) throw std::out_of_range("Invalid substack range");
-		return MoveList<T>(t, last, *this);
-	}
+	MoveList<T> from(T* t) { return MoveList<T>(t, last, *this); }
 	void destroy(MoveList<T>* sub) { last = sub->begin(); }
 	void set_last(T* l) { last = l; }
 

@@ -27,7 +27,7 @@ template <bool white>
 static inline bool is_attacked(Square square, Board& b) {
 	using namespace piece_move;
 	BitBoard& c = b.occ_board;
-	return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, b) & b.get_piece_board<!white, PAWN>())
+	return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, b.occ_board) & b.get_piece_board<!white, PAWN>())
 		|| (get_knight_move(square) & b.get_piece_board<!white, KNIGHT>())
 		|| (get_rook_move(square, c) & (b.get_piece_board<!white, ROOK>() | b.get_piece_board<!white, QUEEN>()))
 		|| (get_bishop_move(square, c) & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<!white, QUEEN>()))
@@ -40,7 +40,7 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 	BitBoard& occ = b.occ_board;
 	switch (piece) {
 	case PAWN:
-		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, b);
+		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, b.occ_board);
 	case KING:
 		return piece_move::get_king_move(square);
 	case ROOK:
@@ -58,7 +58,7 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 
 // Create pin masks.
 template <bool white, bool diagonal>
-static inline BitBoard make_pin_mask(BitBoard& pinners, BitBoard& king_mask, Position& pos) {
+static inline BitBoard make_pin_mask(BitBoard pinners, BitBoard king_mask, Position& pos) {
 	BitBoard pinmask = 0b0;
 	BitBoard queen_board = pos.board.get_piece_board<!white, QUEEN>();
 	BitBoard slider_board = pos.board.get_piece_board<!white, diagonal ? BISHOP : ROOK>();
@@ -76,23 +76,21 @@ static MaskSet create_masks(Position& pos, Square king_square) {
 	Board& b = pos.board;
 	BitBoard& c = b.occ_board;
 	MaskSet ret;
-	// King reach.
-	ret.king_dg = piece_move::get_bishop_move(king_square, c);
-	ret.king_orth = piece_move::get_rook_move(king_square, c);
-	ret.king_kn = piece_move::get_knight_move(king_square);
-	ret.king_pw = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(king_square, b);
-
-	// A player can move only to empty or enemy squares.
 	ret.can_move_to = ~b.get_player_occ<white>();
+	// King reach.
+	ret.king_pw = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(king_square, b.occ_board);
+	ret.king_kn = piece_move::get_knight_move(king_square);	 // A player can move only to empty or enemy squares.
 
 	// Get all potential pinner pieces.
+	ret.king_orth = piece_move::get_rook_move(king_square, c);
 	ret.orth_pinners =
 		rook_mask_table[king_square] & (b.get_piece_board<!white, ROOK>() | b.get_piece_board<!white, QUEEN>());
+	ret.orth_pinners &= piece_move::get_rook_move(king_square, ret.orth_pinners);
+
+	ret.king_dg = piece_move::get_bishop_move(king_square, c);
 	ret.dg_pinners =
 		bishop_mask_table[king_square] & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<!white, QUEEN>());
-
 	// Get only the pinners closest to the king.
-	ret.orth_pinners &= piece_move::get_rook_move(king_square, ret.orth_pinners);
 	ret.dg_pinners &= piece_move::get_bishop_move(king_square, ret.dg_pinners);
 
 	// Make pinmask.
@@ -209,23 +207,29 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
 	uint64_t ret = 0;
-	while (source) {
-		Square from = pop(source);
-		BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
-		while (to_board) {
-			Square to = pop(to_board);
-			uint64_t n = 0;
-			if constexpr (depth_to_go <= 1)
-				n += 1;
-			else {
-				pawn_double<white>(from, to, pos);
-				n += count_moves<!white, depth_to_go - 1, false>(pos);
-				unmake_pawn_double<white>(from, to, pos);
-			}
+	if constexpr (depth_to_go <= 1) {
+		ret = __builtin_popcountll(piece_move::get_pawn_double<white>(source, pos.board.occ_board) & cmt);
+	} else {
+		while (source) {
+			Square from = pop(source);
+			BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
 
-			if constexpr (print_move)
-				std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n) << '\n';
-			ret += n;
+			while (to_board) {
+				Square to = pop(to_board);
+				uint64_t n = 0;
+				if constexpr (depth_to_go <= 1)
+					n += 1;
+				else {
+					pawn_double<white>(from, to, pos);
+					n += count_moves<!white, depth_to_go - 1, false>(pos);
+					unmake_pawn_double<white>(from, to, pos);
+				}
+
+				if constexpr (print_move)
+					std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n)
+							  << '\n';
+				ret += n;
+			}
 		}
 	}
 	return ret;
@@ -269,9 +273,9 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 	while (cmt) {
 		uint64_t n = 0;
 		Square to = pop(cmt);
-		if constexpr (depth_to_go <= 1)
-			n += 1;
-		else if constexpr (capture) {
+		if constexpr (depth_to_go <= 1) {
+			throw std::invalid_argument("Code should not have reached this point.");
+		} else if constexpr (capture) {
 			// Capture moves.
 			const Piece captured = pos.board.get_piece<!white>(to);
 			capture_move_wrapper<white, p>(from, to, pos, captured);
@@ -280,6 +284,7 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 		} else {
 			// Plain, non special moves.
 			plain_move<white, p>(from, to, pos);
+
 			n += count_moves<!white, depth_to_go - 1, false>(pos);
 			unmake_plain_move<white, p>(from, to, pos);
 		}
@@ -291,38 +296,69 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 	return ret;
 }
 
-// Create moves given a from and to board..
-template <bool white, Piece p, int depth_to_go, bool print_move>
-static inline uint64_t generate_moves(BitBoard cmt, BitBoard& pieces, Position& pos) {
+template <bool white, int depth_to_go, bool print_move>
+static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	uint64_t ret = 0;
-	// For pawns, handle special cases seperately.
-	if constexpr (p == PAWN) {
-		BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
-		BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
-		ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
-		// ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
-		pieces &= ~pawns_on_promo;
+	BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
+	BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
+	ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
+	// ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
+	pieces &= ~pawns_on_promo;
+
+	if constexpr (depth_to_go <= 1) {
+		ret += __builtin_popcountll(
+			piece_move::get_pawn_forward<white>(pieces) & cmt & ~pos.board.get_player_occ<!white>()
+		);
+		ret += __builtin_popcountll(
+			piece_move::get_pawn_attacks<white>(pieces & no_edges) & cmt & pos.board.get_player_occ<!white>()
+		);
+		pieces &= ~no_edges;
 	}
+
 	// For all instances of given piece.
 	while (pieces) {
 		Square from = pop(pieces);
 		BitBoard captures;
 		BitBoard non_captures;
-		if constexpr (p == PAWN) {
-			non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board)
-				& ~pos.board.get_player_occ<!white>();
-			captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board)
-				& pos.board.get_player_occ<!white>();
-		} else {
-			BitBoard piece_moves_to = cmt & make_reach_board<white, p>(from, pos.board);
-			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
-			non_captures = piece_moves_to & ~captures;
+		non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board.occ_board)
+			& ~pos.board.get_player_occ<!white>();
+		captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board.occ_board)
+			& pos.board.get_player_occ<!white>();
+		if constexpr (depth_to_go <= 1) {
+			ret += __builtin_popcountll(captures);
+			continue;
 		}
 
 		// Non-captures.
-		ret += generate_move_or_capture<white, p, false, depth_to_go, print_move>(non_captures, from, pos);
+		ret += generate_move_or_capture<white, PAWN, false, depth_to_go, print_move>(non_captures, from, pos);
 		// Captures.
-		ret += generate_move_or_capture<white, p, true, depth_to_go, print_move>(captures, from, pos);
+		ret += generate_move_or_capture<white, PAWN, true, depth_to_go, print_move>(captures, from, pos);
+	}
+	return ret;
+}
+
+// Create moves given a from and to board..
+template <bool white, Piece p, int depth_to_go, bool print_move>
+static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
+	uint64_t ret = 0;
+
+	// For all instances of given piece.
+	while (pieces) {
+		Square from = pop(pieces);
+		if constexpr (depth_to_go <= 1) {
+			ret += __builtin_popcountll(cmt & make_reach_board<white, p>(from, pos.board));
+		} else {
+			BitBoard captures;
+			BitBoard non_captures;
+			BitBoard piece_moves_to = cmt & make_reach_board<white, p>(from, pos.board);
+			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
+			non_captures = piece_moves_to & ~captures;
+
+			// Non-captures.
+			ret += generate_move_or_capture<white, p, false, depth_to_go, print_move>(non_captures, from, pos);
+			// Captures.
+			ret += generate_move_or_capture<white, p, true, depth_to_go, print_move>(captures, from, pos);
+		}
 	}
 	return ret;
 }
@@ -338,21 +374,31 @@ static inline uint64_t generate_any(Position& pos, MaskSet& maskset) {
 	BitBoard pinned_orth = can_move_from & maskset.king_orth & maskset.pinmask_orth;
 	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
 
-	// Unpinned.
-	ret += generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to, unpinned, pos);
-	// Pinned diagonally.
-	ret += generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to & maskset.pinmask_dg, pinned_dg, pos);
-	// Pinned orthogonally.
-	ret +=
-		generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to & maskset.pinmask_orth, pinned_orth, pos);
-
+	if constexpr (p == PAWN) {
+		ret += generate_pawn_moves<white, depth_to_go, print_move>(maskset.can_move_to, unpinned, pos);
+		ret += generate_pawn_moves<white, depth_to_go, print_move>(
+			maskset.can_move_to & maskset.pinmask_dg, pinned_dg, pos
+		);
+		ret += generate_pawn_moves<white, depth_to_go, print_move>(
+			maskset.can_move_to & maskset.pinmask_orth, pinned_orth, pos
+		);
+	} else {
+		// Unpinned.
+		ret += generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to, unpinned, pos);
+		// Pinned diagonally.
+		ret +=
+			generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to & maskset.pinmask_dg, pinned_dg, pos);
+		// Pinned orthogonally.
+		ret += generate_moves<white, p, depth_to_go, print_move>(
+			maskset.can_move_to & maskset.pinmask_orth, pinned_orth, pos
+		);
+	}
 	return ret;
 }
 
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos) {
-	if constexpr (depth_to_go <= 0) return 0;
 	uint64_t ret = 0;
 	// Make king mask.
 	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
@@ -360,10 +406,11 @@ uint64_t count_moves(Position& pos) {
 	MaskSet maskset = create_masks<white>(pos, king_square);
 	// Amount of checkers.
 	uint8_t checker_cnt = maskset.get_check_cnt();
+	ret += generate_king_moves<white, depth_to_go, print_move>(maskset.can_move_to, king_square, pos);
 	// Conditionals only taken when king is in check. If double check, only king can move. Else, limit the
 	// target squares to the checkmask and skip castling moves..
 	if (checker_cnt >= 2)
-		goto king;
+		return ret;
 	else if (checker_cnt) {
 		maskset.can_move_to &= maskset.get_check_mask();
 		goto no_castle;
@@ -380,8 +427,6 @@ no_castle:
 	ret += generate_any<white, PAWN, depth_to_go, print_move>(pos, maskset);
 	// ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);
 	// King and queen side castle.
-king:
-	ret += generate_king_moves<white, depth_to_go, print_move>(maskset.can_move_to, king_square, pos);
 	return ret;
 }
 

@@ -1,3 +1,4 @@
+#include <ios>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -8,7 +9,7 @@
 using namespace pyke;
 
 const std::vector<std::string> moves = {};
-const int PERFT_TARGET = 6;
+const int PERFT_TARGET = 7;
 
 int main(int argc, char* argv[]) {
 	std::cout << "Pyke chess move generator by Nathanael Mohanu \n";
@@ -19,7 +20,6 @@ int main(int argc, char* argv[]) {
 	pos.print_position();
 	perft(pos, PERFT_TARGET - moves.size());
 	pos.print_position();
-	print_bitboard(pos.board.w_pawn);
-	print_bitboard(pos.board.b_pawn);
+
 	return 0;
 }

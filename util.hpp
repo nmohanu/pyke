@@ -45,7 +45,7 @@ inline uint8_t notation_to_square(std::string notation) {
 }
 
 inline uint8_t pop(uint64_t& b) {
-	Square index = uint8_t(__builtin_clzll(b));
+	Square index = __builtin_clzll(b);
 	b ^= (1ULL << (63 - index));
 	return index;
 }
@@ -77,8 +77,8 @@ static std::string move_to_string(Move move) {
 }
 */
 
-constexpr static inline uint8_t square_to_shamt(Square s) { return 63 - s; }
+inline uint8_t square_to_shamt(Square s) { return 63 - s; }
 
-constexpr static inline uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
+inline uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
 
 #endif
