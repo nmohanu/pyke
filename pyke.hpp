@@ -217,13 +217,9 @@ static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoar
 			while (to_board) {
 				Square to = pop(to_board);
 				uint64_t n = 0;
-				if constexpr (depth_to_go <= 1)
-					n += 1;
-				else {
-					pawn_double<white>(from, to, pos);
-					n += count_moves<!white, depth_to_go - 1, false>(pos);
-					unmake_pawn_double<white>(from, to, pos);
-				}
+				pawn_double<white>(from, to, pos);
+				n += count_moves<!white, depth_to_go - 1, false>(pos);
+				unmake_pawn_double<white>(from, to, pos);
 
 				if constexpr (print_move)
 					std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n)
@@ -299,40 +295,38 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	uint64_t ret = 0;
+	BitBoard eb = pos.board.get_player_occ<!white>();
+	BitBoard blockers = pos.board.occ_board;
+	BitBoard cmt_free = cmt & ~eb;
+	BitBoard cmt_captures = cmt & eb;
 	BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
 	BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
 	ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
 	// ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
 	pieces &= ~pawns_on_promo;
 
+	// Generate moves in bulk.
 	if constexpr (depth_to_go <= 1) {
-		ret += __builtin_popcountll(
-			piece_move::get_pawn_forward<white>(pieces) & cmt & ~pos.board.get_player_occ<!white>()
-		);
-		ret += __builtin_popcountll(
-			piece_move::get_pawn_attacks<white>(pieces & no_edges) & cmt & pos.board.get_player_occ<!white>()
-		);
+		ret += __builtin_popcountll(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
+		ret += __builtin_popcountll(piece_move::get_pawn_diags<white>(pieces & no_edges) & cmt_captures);
 		pieces &= ~no_edges;
 	}
 
-	// For all instances of given piece.
+	// For all remaining pieces.
 	while (pieces) {
 		Square from = pop(pieces);
-		BitBoard captures;
-		BitBoard non_captures;
-		non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board.occ_board)
-			& ~pos.board.get_player_occ<!white>();
-		captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board.occ_board)
-			& pos.board.get_player_occ<!white>();
+		BitBoard captures = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, blockers) & cmt_captures;
 		if constexpr (depth_to_go <= 1) {
 			ret += __builtin_popcountll(captures);
 			continue;
-		}
+		} else {
+			BitBoard non_captures = piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, blockers) & cmt_free;
 
-		// Non-captures.
-		ret += generate_move_or_capture<white, PAWN, false, depth_to_go, print_move>(non_captures, from, pos);
-		// Captures.
-		ret += generate_move_or_capture<white, PAWN, true, depth_to_go, print_move>(captures, from, pos);
+			// Non-captures.
+			ret += generate_move_or_capture<white, PAWN, false, depth_to_go, print_move>(non_captures, from, pos);
+			// Captures.
+			ret += generate_move_or_capture<white, PAWN, true, depth_to_go, print_move>(captures, from, pos);
+		}
 	}
 	return ret;
 }
@@ -417,7 +411,7 @@ uint64_t count_moves(Position& pos) {
 	}
 	// Castling moves.
 	// ret += generate_castle_move<white, true, depth_to_go, print_move>(pos, king_square);
-	// ret += generate_castle_move<white, false, depth_to_go, print_move>(pos, king_square);
+	// ret += generate_castle_move<white, false, depth_to_go, print_move>occ_board(pos, king_square);
 no_castle:
 	// Generate moves.
 	ret += generate_any<white, ROOK, depth_to_go, print_move>(pos, maskset);
