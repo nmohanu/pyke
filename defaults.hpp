@@ -50,5 +50,6 @@ inline constexpr uint8_t king_end_squares[4] = {62, 58, 6, 2};
 inline constexpr uint8_t rook_end_squares[4] = {61, 59, 5, 3};
 inline constexpr std::array<Piece, 6> non_king_pieces = {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, EMPTY};
 inline constexpr std::array<Piece, 7> pieces = {PAWN, KING, KNIGHT, BISHOP, ROOK, QUEEN, EMPTY};
+inline constexpr BitBoard no_edges = 0b0111'1110'0111'1110'0111'1110'0111'1110'0111'1110'0111'1110'0111'1110'0111'1110;
 
 #endif	// !DEFAULTS_H

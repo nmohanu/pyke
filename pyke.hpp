@@ -207,13 +207,13 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
 	uint64_t ret = 0;
-	while (source) {
-		Square from = pop(source);
-		BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
+	if constexpr (depth_to_go <= 1) {
+		ret = __builtin_popcountll(piece_move::get_pawn_double<white>(source, pos.board.occ_board) & cmt);
+	} else {
+		while (source) {
+			Square from = pop(source);
+			BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
 
-		if constexpr (depth_to_go <= 1) {
-			ret += __builtin_popcountll(to_board);
-		} else {
 			while (to_board) {
 				Square to = pop(to_board);
 				uint64_t n = 0;
@@ -296,40 +296,63 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 	return ret;
 }
 
+template <bool white, int depth_to_go, bool print_move>
+static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
+	uint64_t ret = 0;
+	BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
+	BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
+	ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
+	// ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
+	pieces &= ~pawns_on_promo;
+
+	if constexpr (depth_to_go <= 1) {
+		ret += __builtin_popcountll(
+			piece_move::get_pawn_forward<white>(pieces) & cmt & ~pos.board.get_player_occ<!white>()
+		);
+		ret += __builtin_popcountll(
+			piece_move::get_pawn_attacks<white>(pieces & no_edges) & cmt & pos.board.get_player_occ<!white>()
+		);
+		pieces &= ~no_edges;
+	}
+
+	// For all instances of given piece.
+	while (pieces) {
+		Square from = pop(pieces);
+		BitBoard captures;
+		BitBoard non_captures;
+		non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board.occ_board)
+			& ~pos.board.get_player_occ<!white>();
+		captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board.occ_board)
+			& pos.board.get_player_occ<!white>();
+		if constexpr (depth_to_go <= 1) {
+			ret += __builtin_popcountll(captures);
+			continue;
+		}
+
+		// Non-captures.
+		ret += generate_move_or_capture<white, PAWN, false, depth_to_go, print_move>(non_captures, from, pos);
+		// Captures.
+		ret += generate_move_or_capture<white, PAWN, true, depth_to_go, print_move>(captures, from, pos);
+	}
+	return ret;
+}
+
 // Create moves given a from and to board..
 template <bool white, Piece p, int depth_to_go, bool print_move>
 static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	uint64_t ret = 0;
-	// For pawns, handle special cases seperately.
-	if constexpr (p == PAWN) {
-		BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
-		BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
-		ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
-		// ret += generate_promotions<white, depth_to_go, print_move>(pos, cmt, pawns_on_promo);
-		pieces &= ~pawns_on_promo;
-	}
+
 	// For all instances of given piece.
 	while (pieces) {
 		Square from = pop(pieces);
-		if constexpr (depth_to_go <= 1 && p != PAWN) {
+		if constexpr (depth_to_go <= 1) {
 			ret += __builtin_popcountll(cmt & make_reach_board<white, p>(from, pos.board));
 		} else {
 			BitBoard captures;
 			BitBoard non_captures;
-			if constexpr (p == PAWN) {
-				non_captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, pos.board.occ_board)
-					& ~pos.board.get_player_occ<!white>();
-				captures = cmt & piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, pos.board.occ_board)
-					& pos.board.get_player_occ<!white>();
-				if constexpr (depth_to_go <= 1) {
-					ret += __builtin_popcountll(non_captures | captures);
-					continue;
-				}
-			} else {
-				BitBoard piece_moves_to = cmt & make_reach_board<white, p>(from, pos.board);
-				captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
-				non_captures = piece_moves_to & ~captures;
-			}
+			BitBoard piece_moves_to = cmt & make_reach_board<white, p>(from, pos.board);
+			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
+			non_captures = piece_moves_to & ~captures;
 
 			// Non-captures.
 			ret += generate_move_or_capture<white, p, false, depth_to_go, print_move>(non_captures, from, pos);
@@ -351,14 +374,25 @@ static inline uint64_t generate_any(Position& pos, MaskSet& maskset) {
 	BitBoard pinned_orth = can_move_from & maskset.king_orth & maskset.pinmask_orth;
 	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
 
-	// Unpinned.
-	ret += generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to, unpinned, pos);
-	// Pinned diagonally.
-	ret += generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to & maskset.pinmask_dg, pinned_dg, pos);
-	// Pinned orthogonally.
-	ret +=
-		generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to & maskset.pinmask_orth, pinned_orth, pos);
-
+	if constexpr (p == PAWN) {
+		ret += generate_pawn_moves<white, depth_to_go, print_move>(maskset.can_move_to, unpinned, pos);
+		ret += generate_pawn_moves<white, depth_to_go, print_move>(
+			maskset.can_move_to & maskset.pinmask_dg, pinned_dg, pos
+		);
+		ret += generate_pawn_moves<white, depth_to_go, print_move>(
+			maskset.can_move_to & maskset.pinmask_orth, pinned_orth, pos
+		);
+	} else {
+		// Unpinned.
+		ret += generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to, unpinned, pos);
+		// Pinned diagonally.
+		ret +=
+			generate_moves<white, p, depth_to_go, print_move>(maskset.can_move_to & maskset.pinmask_dg, pinned_dg, pos);
+		// Pinned orthogonally.
+		ret += generate_moves<white, p, depth_to_go, print_move>(
+			maskset.can_move_to & maskset.pinmask_orth, pinned_orth, pos
+		);
+	}
 	return ret;
 }
 
