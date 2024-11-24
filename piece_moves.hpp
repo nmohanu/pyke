@@ -29,14 +29,27 @@ inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
 inline BitBoard get_queen_move(const Square square, const BitBoard occ) {
 	return piece_move::get_bishop_move(square, occ) | piece_move::get_rook_move(square, occ);
 }
+
+// Get pawn diagonals, without trimming any form of illegal moves or edge cases.
+template <bool white>
+inline BitBoard get_pawn_diags(const BitBoard piece_board) {
+	if constexpr (white)
+		return (piece_board << 9) | (piece_board << 7);
+	else
+		return (piece_board >> 9) | (piece_board >> 7);
+}
+
 // Only the attack squares. Used to check if king is checked by pawn.
 template <bool white>
 inline BitBoard get_pawn_attacks(const BitBoard piece_board) {
 	Square s = __builtin_clzll(piece_board);
-	if constexpr (white) return ((piece_board << 9) | (piece_board << 7)) & (0xFFULL << (64 - (s - s % 8)));
-	return ((piece_board >> 9) | (piece_board >> 7)) & (0xFFULL << (64 - (s - s % 8) - 16));
+	if constexpr (white)
+		return (get_pawn_diags<white>(piece_board)) & (0xFFULL << (64 - (s & ~7)));
+	else
+		return (get_pawn_diags<white>(piece_board)) & (0xFFULL << (48 - (s & ~7)));
 }
 
+// Get pawn forward.
 template <bool white>
 inline BitBoard get_pawn_forward(const BitBoard piece_board) {
 	if constexpr (white)
@@ -52,6 +65,7 @@ inline BitBoard get_pawn_double(const BitBoard piece_board, const BitBoard occ) 
 	return get_pawn_forward<white>(single) & ~occ;
 }
 
+// Calls the requested pawn move type function.
 template <bool white, PawnMoveType type>
 inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
 	BitBoard p_board = square_to_mask(s);
