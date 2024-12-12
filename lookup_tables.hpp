@@ -1,5 +1,9 @@
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+
+#include "defaults.hpp"
+#include "util.hpp"
 
 #ifndef LOOKUPTABLES_H
 #define LOOKUPTABLES_H
@@ -142,7 +146,7 @@ constexpr uint64_t KNIGHT_MOVE_SQUARES[] = {
 };
 
 // rook magic numbers
-const uint64_t rook_magic_numbers[64] = {
+constexpr uint64_t rook_magic_numbers[64] = {
 	0x1004081002402ULL,	   0x2006104900a0804ULL,  0x12001008414402ULL,	 0x20030a0244872ULL,	0x4024081001000421ULL,
 	0x80c0084100102001ULL, 0x2100190040002085ULL, 0x280001040802101ULL,	 0x44440041009200ULL,	0x2935610830022400ULL,
 	0x20c020080040080ULL,  0x1001004080100ULL,	  0x2060820c0120200ULL,	 0x4008142004410100ULL, 0x40802000401080ULL,
@@ -159,7 +163,7 @@ const uint64_t rook_magic_numbers[64] = {
 };
 
 // bishop magic numbers
-const uint64_t bishop_magic_numbers[64] = {
+constexpr uint64_t bishop_magic_numbers[64] = {
 	0x4010011029020020ULL, 0x8918844842082200ULL, 0x6000020202d0240ULL,	 0x28000010020204ULL,	0x8040002811040900ULL,
 	0x500201010098b028ULL, 0x4a02012000ULL,		  0xa010109502200ULL,	 0x4010801011c04ULL,	0x5a84841004010310ULL,
 	0x20906061210001ULL,   0x802241102020002ULL,  0x300000261044000aULL, 0x4000020e01040044ULL, 0x180806108200800ULL,
@@ -442,7 +446,7 @@ constexpr std::array<std::array<uint64_t, 512>, 64> create_bishop_attacks() {
 	return values;
 };
 
-// Attack table instances.
+// Table instances.
 inline const static std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
 inline const static std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
 

@@ -1,5 +1,6 @@
 #include "board.hpp"
 #include "gamestate.hpp"
+#include "maskset.hpp"
 #include "move.hpp"
 #include "stack.hpp"
 
@@ -17,12 +18,20 @@ struct Position {
 	GameState gamestate;
 	Stack<GameState> history;
 	Stack<Move> movelist;
+	Stack<MaskSet*> masks;
 	bool white_turn = true;
+	MaskSet* msk;
 
 	bool is_equal(Position& other);
 
-	inline void moved() { history.push(gamestate); }
-	inline void unmoved() { gamestate = history.pop(); }
+	inline void moved() {
+		history.push(gamestate);
+		masks.push(msk);
+	}
+	inline void unmoved() {
+		gamestate = history.pop();
+		msk = masks.pop();
+	}
 
 	void print_position();
 };

@@ -5,21 +5,20 @@
 #define PIECE_MOVES_H
 
 namespace piece_move {
-
 // King move.
 inline BitBoard get_king_move(const Square square) { return KING_MOVE_SQUARES[square]; }
 // Knight move logic.
 inline BitBoard get_knight_move(const Square square) { return KNIGHT_MOVE_SQUARES[square]; }
 
 // Bishop moving logic.
-inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
+constexpr inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
 	const BitBoard mask = bishop_mask_table[square];
 	const BitBoard occupancy = ((occ & mask) * bishop_magic_numbers[square]) >> __builtin_popcountll(~mask);
 	return bishop_attacks[square][occupancy];
 }
 
 // Rook move logic.
-inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
+constexpr inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
 	const BitBoard mask = rook_mask_table[square];
 	const BitBoard occupancy = ((occ & mask) * rook_magic_numbers[square]) >> __builtin_popcountll(~mask);
 	return rook_attacks[square][occupancy];
@@ -85,5 +84,31 @@ inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
 }
 
 }  // namespace piece_move
+
+static std::array<std::array<uint64_t, 64>, 64> create_betweens() {
+	std::array<std::array<uint64_t, 64>, 64> ret{};
+	for (int s1 = 0; s1 < 64; s1++) {
+		for (int s2 = 0; s2 < 64; s2++) {
+			if (s1 == s2) continue;
+			BitBoard rs1 = piece_move::get_rook_move(s1, square_to_mask(s2));
+			BitBoard rs2 = piece_move::get_rook_move(s2, square_to_mask(s1));
+			BitBoard ds1 = piece_move::get_bishop_move(s1, square_to_mask(s2));
+			BitBoard ds2 = piece_move::get_bishop_move(s2, square_to_mask(s1));
+
+			if (rs1 & square_to_mask(s2)) {
+				BitBoard orth = rs1 & rs2;
+				ret[s1][s2] |= orth;
+			} else if (ds1 & square_to_mask(s2)) {
+				BitBoard diag = ds1 & ds2;
+				ret[s1][s2] |= diag;
+			} else {
+				continue;
+			}
+		}
+	}
+	return ret;
+}
+
+const static std::array<std::array<uint64_t, 64>, 64> between_squares = create_betweens();
 
 #endif

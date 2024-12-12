@@ -1,38 +1,64 @@
+#include "board.hpp"
 #include "defaults.hpp"
+#include "piece_moves.hpp"
 
 #ifndef MASKSET_H
 #define MASKSET_H
 
 struct MaskSet {
-	// King mask.
-	BitBoard king_dg;
-	BitBoard king_orth;
-	BitBoard king_kn;
-	BitBoard king_pw;
-
 	// squares that are empty or enemy;
 	BitBoard can_move_to;
-
-	// Pinner pieces
-	BitBoard orth_pinners;
-	BitBoard dg_pinners;
 
 	// Pinmask.
 	BitBoard pinmask_dg;
 	BitBoard pinmask_orth;
+	BitBoard check_mask;
 
-	// Checkers.
-	BitBoard orth_checkers;
-	BitBoard dg_checkers;
-	BitBoard kn_checkers;
-	BitBoard pw_checkers;
+	int checkers;
 
-	inline uint8_t get_check_cnt() {
-		return __builtin_popcount(orth_checkers) + __builtin_popcount(dg_checkers) + __builtin_popcount(kn_checkers)
-			+ __builtin_popcount(pw_checkers);
+	inline int get_check_cnt() { return checkers; }
+
+	// Create all the needed masks for the current position.
+	template <bool white>
+	void create_masks(Board& b, Square king_square) {
+		checkers = 0;
+		BitBoard eb = b.get_player_occ<!white>();
+		can_move_to = ~b.get_player_occ<white>();
+		BitBoard eq = b.get_piece_board<!white, QUEEN>();
+
+		BitBoard diag_pinners =
+			piece_move::get_bishop_move(king_square, eb) & (b.get_piece_board<!white, BISHOP>() | eq);
+		BitBoard orth_pinners = piece_move::get_rook_move(king_square, eb) & (b.get_piece_board<!white, ROOK>() | eq);
+
+		BitBoard c_mask = 0, p_diag_mask = 0, p_orth_mask = 0;
+
+		auto process_pinners = [&](BitBoard& pinboard, BitBoard& goal_mask) {
+			while (pinboard) {
+				Square src = pop(pinboard);
+				BitBoard between = between_squares[king_square][src];
+
+				switch (__builtin_popcountll(between & b.get_player_occ<white>())) {
+				case 0:
+					c_mask |= between | square_to_mask(src);
+					checkers++;
+					break;
+				case 1:
+					goal_mask |= between | square_to_mask(src);
+					break;
+				}
+			}
+		};
+
+		process_pinners(diag_pinners, p_diag_mask);
+		process_pinners(orth_pinners, p_orth_mask);
+
+		pinmask_dg = p_diag_mask;
+		pinmask_orth = p_orth_mask;
+		check_mask = c_mask;
+
+		if (pinmask_dg) print_bitboard(pinmask_dg);
+		if (pinmask_orth) print_bitboard(pinmask_orth);
 	}
-
-	inline BitBoard get_check_mask() { return orth_checkers | dg_checkers | kn_checkers | pw_checkers; }
 };
 
 #endif
