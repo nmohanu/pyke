@@ -10,7 +10,14 @@
 
 struct GameState {
 public:
-	inline void set_en_passant(bool left, uint8_t file) {}
+	inline void set_en_passant(bool left, uint8_t file) {
+		if (left) {
+			data |= 0b1000'0000;
+		} else {
+			data |= 0b0100'0000;
+		}
+		data += file;
+	}
 	inline uint8_t get_en_passant() { return data & 0b1111'1111; }
 
 	// Remove castling rights side specific.
@@ -56,7 +63,7 @@ public:
 	void set_data(const uint32_t d) { data = d; }
 
 private:
-	uint32_t data;
+	uint32_t data = 0;
 };
 
 #endif

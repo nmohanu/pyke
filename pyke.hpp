@@ -56,18 +56,6 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 	}
 }
 
-// Create pin masks.
-template <bool white, bool diagonal>
-static inline BitBoard make_pin_mask(BitBoard pinners, BitBoard king_mask, Position& pos) {
-	BitBoard pinmask = 0b0;
-	BitBoard queen_board = pos.board.get_piece_board<!white, QUEEN>() & pinners;
-	BitBoard slider_board = pos.board.get_piece_board<!white, diagonal ? BISHOP : ROOK>() & pinners;
-	while (queen_board) pinmask |= diagonal ? bishop_mask_table[pop(queen_board)] : rook_mask_table[pop(queen_board)];
-	while (slider_board)
-		pinmask |= diagonal ? bishop_mask_table[pop(slider_board)] : rook_mask_table[pop(slider_board)];
-	return pinmask & king_mask;
-}
-
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
 	uint64_t ret = 0;
@@ -75,28 +63,32 @@ static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
 	// In most cases, no ep is possible.
 	if (!ep) return 0;
 	auto make_en_passant = [&](int8_t from_offset) {
+		uint64_t loc_ret = 0;
 		// Rank to move to.
 		File to = ep & 0b00001111;
-		// Whether en passant comes from the left.
-		bool from_the_left = ep & 0b10000000;
 		// From which file the pawn comes.
 		File from = to + from_offset;
 		// The start and end rank.
-		Rank start_rank = white ? 4 : 3;
-		Rank end_rank = white ? 5 : 2;
+		Rank start_rank = white ? 3 : 4;
+		Rank end_rank = white ? 2 : 5;
 		// Start and end square.
 		Square start_square = from + start_rank * 8;
 		Square end_square = to + end_rank * 8;
 
+		Board cp = pos.board.copy();
 		ep_move<white>(start_square, end_square, pos);
 		if (!is_attacked<white>(king_sq, pos.board)) {
 			if constexpr (depth_to_go <= 1)
-				ret += 1;
+				loc_ret += 1;
 			else
-				ret += 1 + count_moves<white, depth_to_go - 1, false>(pos);
+				loc_ret += 1 + count_moves<white, depth_to_go - 1, false>(pos);
 		}
 		unmake_ep_move<white>(start_square, end_square, pos);
-		return ret;
+
+		if (loc_ret && print_move)
+			std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": "
+					  << std::to_string(loc_ret) << '\n';
+		return loc_ret;
 	};
 
 	if (ep & 0b1000'0000) ret += make_en_passant(-1);
@@ -141,23 +133,21 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 	while (cmt) {
 		Square to = pop(cmt);
 		uint64_t n = 0;
-		if (is_attacked<white>(to, pos.board)) {
-			continue;
-		} else if constexpr (depth_to_go <= 1 && !print_move)
-			n += 1;
-		else {
+		if constexpr (depth_to_go < 1 && !print_move) {
+			throw std::invalid_argument("Code should not reach this point.");
+		} else {
 			if (pos.board.square_occ(to)) {
 				Piece captured = pos.board.get_piece<white>(to);
 				capture_move_wrapper<white, KING>(king_square, to, pos, captured);
-				n += count_moves<!white, depth_to_go - 1, false>(pos);
+				if (!is_attacked<white>(to, pos.board)) n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
 			} else {
 				plain_move<white, KING>(king_square, to, pos);
-				n += count_moves<!white, depth_to_go - 1, false>(pos);
+				if (!is_attacked<white>(to, pos.board)) n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_plain_move<white, KING>(king_square, to, pos);
 			}
 		}
-		if constexpr (print_move)
+		if (print_move && n)
 			std::cout << make_chess_notation(king_square) << make_chess_notation(to) << ": " << std::to_string(n)
 					  << '\n';
 		ret += n;
@@ -182,7 +172,6 @@ static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoar
 				pawn_double<white>(from, to, pos);
 				n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_pawn_double<white>(from, to, pos);
-
 				if constexpr (print_move)
 					std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n)
 							  << '\n';
@@ -246,7 +235,6 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 			n += count_moves<!white, depth_to_go - 1, false>(pos);
 			unmake_plain_move<white, p>(from, to, pos);
 		}
-
 		if constexpr (print_move)
 			std::cout << make_chess_notation(from) << make_chess_notation(to) << ": " << std::to_string(n) << '\n';
 		ret += n;
@@ -270,8 +258,6 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 	// Generate moves in bulk.
 	if constexpr (depth_to_go <= 1 && !print_move) {
 		ret += __builtin_popcountll(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
-		ret += __builtin_popcountll(piece_move::get_pawn_diags<white>(pieces & no_edges) & cmt_captures);
-		pieces &= ~no_edges;
 	}
 
 	// For all remaining pieces.
@@ -280,10 +266,8 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 		BitBoard captures = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, blockers) & cmt_captures;
 		if constexpr (depth_to_go <= 1 && !print_move) {
 			ret += __builtin_popcountll(captures);
-			continue;
 		} else {
 			BitBoard non_captures = piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, blockers) & cmt_free;
-
 			// Non-captures.
 			ret += generate_move_or_capture<white, PAWN, false, depth_to_go, print_move>(non_captures, from, pos);
 			// Captures.
@@ -356,6 +340,7 @@ static inline uint64_t generate_any(Position& pos) {
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos) {
+c5c4:
 	if constexpr (depth_to_go < 1) return 1;
 	uint64_t ret = 0;
 	// Make king mask.
@@ -382,8 +367,7 @@ no_castle:
 	ret += generate_any<white, BISHOP, depth_to_go, print_move>(pos);
 	ret += generate_any<white, KNIGHT, depth_to_go, print_move>(pos);
 	ret += generate_any<white, PAWN, depth_to_go, print_move>(pos);
-	// ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);
-	// King and queen side castle.
+	ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);
 	return ret;
 }
 

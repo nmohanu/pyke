@@ -1,5 +1,7 @@
 
+#include <cassert>
 #include <cstdint>
+#include <ios>
 #include <iostream>
 #include <string>
 
@@ -100,7 +102,7 @@ static void unmake_capture_move(Square from, Square to, Position& pos) {
 template <bool white>
 static void ep_move(Square from, Square to, Position& pos) {
 	pos.moved();
-	Square captured_sq = white ? (to - 8) : (to + 8);
+	Square captured_sq = white ? (to + 8) : (to - 8);
 	move_piece<white, PAWN>(from, to, pos.board);
 	remove_from_board<!white, PAWN>(pos.board, captured_sq);
 }
@@ -109,9 +111,9 @@ static void ep_move(Square from, Square to, Position& pos) {
 template <bool white>
 static void unmake_ep_move(Square from, Square to, Position& pos) {
 	pos.unmoved();
-	Square captured_sq = white ? (to - 8) : (to + 8);
+	Square captured_sq = white ? (to + 8) : (to - 8);
 	unmake_move_piece<white, PAWN>(from, to, pos.board);
-	add_to_board<white, PAWN>(pos.board, captured_sq);
+	add_to_board<!white, PAWN>(pos.board, captured_sq);
 }
 
 // Do promo move.
@@ -141,25 +143,21 @@ static void pawn_double(Square from, Square to, Position& pos) {
 	move_piece<white, PAWN>(from, to, pos.board);
 
 	// pawn moved two forward, update en passant status.
-	bool left_is_pawn = pos.board.get_piece<white>(to - 1) == PAWN;
-	bool right_is_pawn = pos.board.get_piece<white>(to + 1) == PAWN;
-	bool left_piece_sign = square_to_mask(to - 1) & pos.board.w_board;
-	bool right_piece_sign = square_to_mask(to + 1) & pos.board.w_board;
-	bool left_is_opp_pawn = left_is_pawn && (left_piece_sign != white);
-	bool right_is_opp_pawn = right_is_pawn && (right_piece_sign != white);
+	bool left_is_opp_pawn = pos.board.get_piece_board<!white, PAWN>() & square_to_mask(to - 1);
+	bool right_is_opp_pawn = pos.board.get_piece_board<!white, PAWN>() & square_to_mask(to + 1);
+	File file = to % 8;
 
 	// Edge of board cases.
-	bool not_edge_left = to % 8 != 0;
-	bool not_edge_right = to % 8 != 7;
+	bool edge_left = file == 0;
+	bool edge_right = file == 7;
 
 	// Check if en passant is possible.
-	bool possible_left = left_is_opp_pawn && not_edge_left;
-	bool possible_right = right_is_opp_pawn && not_edge_right;
+	bool possible_left = left_is_opp_pawn && !edge_left;
+	bool possible_right = right_is_opp_pawn && !edge_right;
 
 	// Update flag.
-	uint8_t file = to % 8;
-	if (possible_left) pos.gamestate.set_en_passant(possible_left, file);
-	if (possible_right) pos.gamestate.set_en_passant(possible_right, file);
+	if (possible_left) pos.gamestate.set_en_passant(true, file);
+	if (possible_right) pos.gamestate.set_en_passant(false, file);
 }
 
 // Undo double pawn move.

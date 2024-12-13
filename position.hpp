@@ -25,10 +25,12 @@ struct Position {
 	bool is_equal(Position& other);
 
 	inline void moved() {
+		white_turn = !white_turn;
 		history.push(gamestate);
 		masks.push(msk);
 	}
 	inline void unmoved() {
+		white_turn = !white_turn;
 		gamestate = history.pop();
 		msk = masks.pop();
 	}

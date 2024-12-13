@@ -52,12 +52,22 @@ struct MaskSet {
 		process_pinners(diag_pinners, p_diag_mask);
 		process_pinners(orth_pinners, p_orth_mask);
 
+		BitBoard k_checkers = piece_move::get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
+		BitBoard p_checkers =
+			piece_move::get_pawn_diags<white>(square_to_mask(king_square)) & b.get_piece_board<!white, PAWN>();
+
+		if (k_checkers) {
+			c_mask |= k_checkers;
+			checkers++;
+		}
+		if (p_checkers) {
+			c_mask |= p_checkers;
+			checkers++;
+		}
+
 		pinmask_dg = p_diag_mask;
 		pinmask_orth = p_orth_mask;
 		check_mask = c_mask;
-
-		if (pinmask_dg) print_bitboard(pinmask_dg);
-		if (pinmask_orth) print_bitboard(pinmask_orth);
 	}
 };
 
