@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include "board.hpp"
 #include "defaults.hpp"
 #include "piece_moves.hpp"
@@ -14,23 +16,38 @@ struct MaskSet {
 	BitBoard pinmask_orth;
 	BitBoard check_mask;
 
-	int checkers;
+	uint8_t checkers;
 
-	inline int get_check_cnt() { return checkers; }
+	inline uint8_t get_check_cnt() { return checkers; }
 
 	// Create all the needed masks for the current position.
 	template <bool white>
 	void create_masks(Board& b, Square king_square) {
 		checkers = 0;
-		BitBoard eb = b.get_player_occ<!white>();
 		can_move_to = ~b.get_player_occ<white>();
-		BitBoard eq = b.get_piece_board<!white, QUEEN>();
-
-		BitBoard diag_pinners =
-			piece_move::get_bishop_move(king_square, eb) & (b.get_piece_board<!white, BISHOP>() | eq);
-		BitBoard orth_pinners = piece_move::get_rook_move(king_square, eb) & (b.get_piece_board<!white, ROOK>() | eq);
 
 		BitBoard c_mask = 0, p_diag_mask = 0, p_orth_mask = 0;
+
+		BitBoard k_checkers = piece_move::get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
+		BitBoard p_checkers =
+			piece_move::get_pawn_diags<white>(square_to_mask(king_square)) & b.get_piece_board<!white, PAWN>();
+
+		if (k_checkers) {
+			c_mask |= k_checkers;
+			checkers++;
+		}
+		if (p_checkers) {
+			c_mask |= p_checkers;
+			checkers++;
+		}
+
+		BitBoard opp_board = b.get_player_occ<!white>();
+		BitBoard eq = b.get_piece_board<!white, QUEEN>();
+		BitBoard eb = b.get_piece_board<!white, BISHOP>();
+		BitBoard er = b.get_piece_board<!white, ROOK>();
+
+		BitBoard diag_pinners = piece_move::get_bishop_move(king_square, opp_board) & (eb | eq);
+		BitBoard orth_pinners = piece_move::get_rook_move(king_square, opp_board) & (er | eq);
 
 		auto process_pinners = [&](BitBoard& pinboard, BitBoard& goal_mask) {
 			while (pinboard) {
@@ -51,19 +68,6 @@ struct MaskSet {
 
 		process_pinners(diag_pinners, p_diag_mask);
 		process_pinners(orth_pinners, p_orth_mask);
-
-		BitBoard k_checkers = piece_move::get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
-		BitBoard p_checkers =
-			piece_move::get_pawn_diags<white>(square_to_mask(king_square)) & b.get_piece_board<!white, PAWN>();
-
-		if (k_checkers) {
-			c_mask |= k_checkers;
-			checkers++;
-		}
-		if (p_checkers) {
-			c_mask |= p_checkers;
-			checkers++;
-		}
 
 		pinmask_dg = p_diag_mask;
 		pinmask_orth = p_orth_mask;

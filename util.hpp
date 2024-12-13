@@ -77,8 +77,8 @@ static std::string move_to_string(Move move) {
 }
 */
 
-inline uint8_t square_to_shamt(Square s) { return 63 - s; }
+inline constexpr uint8_t square_to_shamt(Square s) { return 63 - s; }
 
-inline uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
+inline constexpr uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
 
 #endif

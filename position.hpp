@@ -28,6 +28,7 @@ struct Position {
 		white_turn = !white_turn;
 		history.push(gamestate);
 		masks.push(msk);
+		gamestate.reset_en_passant();
 	}
 	inline void unmoved() {
 		white_turn = !white_turn;

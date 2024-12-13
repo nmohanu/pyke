@@ -58,6 +58,7 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
+	// Board cpy = pos.board.copy();
 	uint64_t ret = 0;
 	uint8_t ep = pos.gamestate.get_en_passant();
 	// In most cases, no ep is possible.
@@ -93,6 +94,12 @@ static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
 
 	if (ep & 0b1000'0000) ret += make_en_passant(-1);
 	if (ep & 0b0100'0000) ret += make_en_passant(1);
+
+	/*
+	 if (!cpy.is_equal(pos.board)) {
+		std::cout << "EEEEEEEEEEEEEEEEEEERHMMM" << '\n';
+	}
+	*/
 
 	return ret;
 }
@@ -186,7 +193,7 @@ static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoar
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_promotions(Position& pos, BitBoard cmt, BitBoard source) {
 	return 0;
-	/*
+	/*all         Board::is_equal(Board const&
 	const auto generate_promo_pieces = [&](const Piece piece, const Piece captured, Square from, Square to) {
 		promo_move<white, piece, captured>(from, to, pos);
 		int count = 1 + count_moves<!white, depth_to_go - 1>(pos);
@@ -245,10 +252,9 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	uint64_t ret = 0;
-	BitBoard eb = pos.board.get_player_occ<!white>();
 	BitBoard blockers = pos.board.occ_board;
-	BitBoard cmt_free = cmt & ~eb;
-	BitBoard cmt_captures = cmt & eb;
+	BitBoard cmt_free = cmt & ~blockers;
+	BitBoard cmt_captures = cmt & blockers;
 	BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
 	BitBoard pawns_on_promo = pieces & (white ? promotion_from_w : promotion_from_b);
 	ret += generate_pawn_double<white, depth_to_go, print_move>(cmt, pos, pawns_on_start);
@@ -340,14 +346,12 @@ static inline uint64_t generate_any(Position& pos) {
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos) {
-c5c4:
 	if constexpr (depth_to_go < 1) return 1;
 	uint64_t ret = 0;
 	// Make king mask.
 	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
 	pos.msk = new MaskSet;
 	pos.msk->create_masks<white>(pos.board, king_square);
-	// Amount of checkers.
 	ret += generate_king_moves<white, depth_to_go, print_move>(pos.msk->can_move_to, king_square, pos);
 	// Conditionals only taken when king is in check. If double check, only king can move. Else, limit the
 	// target squares to the checkmask and skip castling moves..
@@ -361,7 +365,7 @@ c5c4:
 	// ret += generate_castle_move<white, true, depth_to_go, print_move>(pos, king_square);
 	// ret += generate_castle_move<white, false, depth_to_go, print_move>occ_board(pos, king_square);
 no_castle:
-	// Generate moves.
+	// Generate moves.all         Board::is_equal(Board const&
 	ret += generate_any<white, QUEEN, depth_to_go, print_move>(pos);
 	ret += generate_any<white, ROOK, depth_to_go, print_move>(pos);
 	ret += generate_any<white, BISHOP, depth_to_go, print_move>(pos);

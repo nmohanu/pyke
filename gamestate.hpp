@@ -18,6 +18,9 @@ public:
 		}
 		data += file;
 	}
+
+	inline void reset_en_passant() { data &= 0xff00; }
+
 	inline uint8_t get_en_passant() { return data & 0b1111'1111; }
 
 	// Remove castling rights side specific.

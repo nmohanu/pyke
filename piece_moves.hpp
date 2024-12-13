@@ -6,32 +6,32 @@
 
 namespace piece_move {
 // King move.
-inline BitBoard get_king_move(const Square square) { return KING_MOVE_SQUARES[square]; }
+static inline BitBoard get_king_move(const Square square) { return KING_MOVE_SQUARES[square]; }
 // Knight move logic.
-inline BitBoard get_knight_move(const Square square) { return KNIGHT_MOVE_SQUARES[square]; }
+static inline BitBoard get_knight_move(const Square square) { return KNIGHT_MOVE_SQUARES[square]; }
 
 // Bishop moving logic.
-constexpr inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
+constexpr static inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
 	const BitBoard mask = bishop_mask_table[square];
 	const BitBoard occupancy = ((occ & mask) * bishop_magic_numbers[square]) >> __builtin_popcountll(~mask);
 	return bishop_attacks[square][occupancy];
 }
 
 // Rook move logic.
-constexpr inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
+constexpr static inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
 	const BitBoard mask = rook_mask_table[square];
 	const BitBoard occupancy = ((occ & mask) * rook_magic_numbers[square]) >> __builtin_popcountll(~mask);
 	return rook_attacks[square][occupancy];
 }
 
 // Queen move logic.
-inline BitBoard get_queen_move(const Square square, const BitBoard occ) {
+static inline BitBoard get_queen_move(const Square square, const BitBoard occ) {
 	return piece_move::get_bishop_move(square, occ) | piece_move::get_rook_move(square, occ);
 }
 
 // Get pawn diagonals, without trimming any form of illegal moves or edge cases.
 template <bool white>
-inline BitBoard get_pawn_diags(const BitBoard piece_board) {
+static inline BitBoard get_pawn_diags(const BitBoard piece_board) {
 	if constexpr (white)
 		return (piece_board << 9) | (piece_board << 7);
 	else
@@ -40,7 +40,7 @@ inline BitBoard get_pawn_diags(const BitBoard piece_board) {
 
 // Only the attack squares. Used to check if king is checked by pawn.
 template <bool white>
-inline BitBoard get_pawn_attacks(const BitBoard piece_board) {
+static inline BitBoard get_pawn_attacks(const BitBoard piece_board) {
 	Square s = __builtin_clzll(piece_board);
 	if constexpr (white)
 		return (get_pawn_diags<white>(piece_board)) & (0xFFULL << (64 - (s & ~7)));
@@ -50,7 +50,7 @@ inline BitBoard get_pawn_attacks(const BitBoard piece_board) {
 
 // Get pawn forward.
 template <bool white>
-inline BitBoard get_pawn_forward(const BitBoard piece_board) {
+static inline BitBoard get_pawn_forward(const BitBoard piece_board) {
 	if constexpr (white)
 		return piece_board << 8;
 	else
@@ -59,14 +59,14 @@ inline BitBoard get_pawn_forward(const BitBoard piece_board) {
 
 // Pawn move including double push.
 template <bool white>
-inline BitBoard get_pawn_double(const BitBoard piece_board, const BitBoard occ) {
+static inline BitBoard get_pawn_double(const BitBoard piece_board, const BitBoard occ) {
 	BitBoard single = get_pawn_forward<white>(piece_board) & ~occ;
 	return get_pawn_forward<white>(single) & ~occ;
 }
 
 // Calls the requested pawn move type function.
 template <bool white, PawnMoveType type>
-inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
+static inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
 	BitBoard p_board = square_to_mask(s);
 	switch (type) {
 	case PawnMoveType::ATTACKS:
@@ -85,7 +85,7 @@ inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
 
 }  // namespace piece_move
 
-static std::array<std::array<uint64_t, 64>, 64> create_betweens() {
+constexpr static std::array<std::array<uint64_t, 64>, 64> create_betweens() {
 	std::array<std::array<uint64_t, 64>, 64> ret{};
 	for (int s1 = 0; s1 < 64; s1++) {
 		for (int s2 = 0; s2 < 64; s2++) {

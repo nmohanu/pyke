@@ -19,7 +19,7 @@ static uint64_t perft_internal(Position& pos) {
 	clock_t end = clock();
 	double time_cost = double(end - start) / CLOCKS_PER_SEC;
 	std::cout << "PERFT results: \nNodes evaluated: " << nodes << "\nTime cost: " << time_cost << '\n';
-	std::cout << std::round((nodes / 100000000)) / time_cost << " Hundred million nodes per second" << '\n';
+	std::cout << std::round((nodes / 1000000)) / time_cost << " million nodes per second" << '\n';
 	std::cout << "================================================================================ \n";
 	return nodes;
 }

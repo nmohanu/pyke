@@ -9,7 +9,7 @@
 using namespace pyke;
 
 const std::vector<std::string> moves = {};
-const int PERFT_TARGET = 5;
+const int PERFT_TARGET = 6;
 
 int main(int argc, char* argv[]) {
 	std::cout << "Pyke chess move generator by Nathanael Mohanu \n";
