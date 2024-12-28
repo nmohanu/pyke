@@ -34,6 +34,9 @@ constexpr uint64_t INIT_WHITE_PIECES = 0b000000000000000000000000000000000000000
 #define QUEEN  6
 #define EMPTY  0
 
+#define occb   b.occ_board
+#define popcnt __builtin_popcountll
+
 enum class MoveType { PLAIN, CAPTURE, CASTLE, PAWN_DOUBLE, PROMO, EP };
 enum class PawnMoveType { ATTACKS, FORWARD, DOUBLE_FORWARD, NON_DOUBLE, ALL };
 

@@ -17,7 +17,8 @@ int main(int argc, char* argv[]) {
 	for (auto& m : moves) {
 		move_from_string(m, pos);
 	}
-	// pawn_double<false>(notation_to_square("a7"), notation_to_square("a5"), pos);
+	// pawn_double<false>(notation_to_square("b7"), notation_to_square("b5"), pos);
+	// ep_move<true>(notation_to_square("a5"), notation_to_square("b6"), pos);
 	// std::cout << unsigned(pos.gamestate.get_data()) << '\n';
 	pos.print_position();
 	perft(pos, PERFT_TARGET - moves.size());

@@ -16,12 +16,12 @@ public:
 		} else {
 			data |= 0b0100'0000;
 		}
-		data += file;
+		data |= file;
 	}
 
-	inline void reset_en_passant() { data &= 0xff00; }
+	inline void reset_en_passant() { data &= ~0xff; }
 
-	inline uint8_t get_en_passant() { return data & 0b1111'1111; }
+	inline uint8_t get_en_passant() { return data & 0xff; }
 
 	// Remove castling rights side specific.
 	inline void rm_cr_bq() { data &= ~bq_mask; }

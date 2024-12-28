@@ -81,4 +81,9 @@ inline constexpr uint8_t square_to_shamt(Square s) { return 63 - s; }
 
 inline constexpr uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
 
+static inline void print_movecnt(Square start_square, Square end_square, uint64_t cnt) {
+	std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": " << std::to_string(cnt)
+			  << '\n';
+}
+
 #endif

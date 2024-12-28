@@ -42,6 +42,7 @@ struct MaskSet {
 		}
 
 		BitBoard opp_board = b.get_player_occ<!white>();
+		BitBoard own_board = b.get_player_occ<white>();
 		BitBoard eq = b.get_piece_board<!white, QUEEN>();
 		BitBoard eb = b.get_piece_board<!white, BISHOP>();
 		BitBoard er = b.get_piece_board<!white, ROOK>();
@@ -54,7 +55,7 @@ struct MaskSet {
 				Square src = pop(pinboard);
 				BitBoard between = between_squares[king_square][src];
 
-				switch (__builtin_popcountll(between & b.get_player_occ<white>())) {
+				switch (__builtin_popcountll(between & own_board)) {
 				case 0:
 					c_mask |= between | square_to_mask(src);
 					checkers++;

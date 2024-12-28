@@ -22,47 +22,13 @@ namespace pyke {
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos);
 
-// Returns whether a square is under attack.
-template <bool white>
-static inline bool is_attacked(Square square, Board& b) {
-	using namespace piece_move;
-	BitBoard& c = b.occ_board;
-	return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, b.occ_board) & b.get_piece_board<!white, PAWN>())
-		|| (get_knight_move(square) & b.get_piece_board<!white, KNIGHT>())
-		|| (get_rook_move(square, c) & (b.get_piece_board<!white, ROOK>() | b.get_piece_board<!white, QUEEN>()))
-		|| (get_bishop_move(square, c) & (b.get_piece_board<!white, BISHOP>() | b.get_piece_board<!white, QUEEN>()))
-		|| (get_king_move(square) & b.get_piece_board<!white, KING>());
-}
-
-// Returns the reach of a given piece. For pawns, it returns the reach without double push.
-template <bool white, Piece piece>
-static inline BitBoard make_reach_board(Square square, Board& b) {
-	BitBoard& occ = b.occ_board;
-	switch (piece) {
-	case PAWN:
-		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, b.occ_board);
-	case KING:
-		return piece_move::get_king_move(square);
-	case ROOK:
-		return piece_move::get_rook_move(square, occ);
-	case BISHOP:
-		return piece_move::get_bishop_move(square, occ);
-	case KNIGHT:
-		return piece_move::get_knight_move(square);
-	case QUEEN:
-		return piece_move::get_queen_move(square, occ);
-	default:
-		throw std::invalid_argument("Illegal piece given.");
-	}
-}
-
 template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
-	// Board cpy = pos.board.copy();
-	uint64_t ret = 0;
 	uint8_t ep = pos.gamestate.get_en_passant();
 	// In most cases, no ep is possible.
 	if (!ep) return 0;
+	Board cpy = pos.board.copy();
+	uint64_t ret = 0;
 	auto make_en_passant = [&](int8_t from_offset) {
 		uint64_t loc_ret = 0;
 		// Rank to move to.
@@ -76,30 +42,25 @@ static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
 		Square start_square = from + start_rank * 8;
 		Square end_square = to + end_rank * 8;
 
-		Board cp = pos.board.copy();
 		ep_move<white>(start_square, end_square, pos);
-		if (!is_attacked<white>(king_sq, pos.board)) {
+		if (!pos.is_attacked<white>(king_sq)) {
 			if constexpr (depth_to_go <= 1)
 				loc_ret += 1;
 			else
-				loc_ret += 1 + count_moves<white, depth_to_go - 1, false>(pos);
+				loc_ret += count_moves<!white, depth_to_go - 1, false>(pos);
 		}
 		unmake_ep_move<white>(start_square, end_square, pos);
 
-		if (loc_ret && print_move)
-			std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": "
-					  << std::to_string(loc_ret) << '\n';
+		if (loc_ret && print_move) print_movecnt(start_square, end_square, loc_ret);
 		return loc_ret;
 	};
 
 	if (ep & 0b1000'0000) ret += make_en_passant(-1);
 	if (ep & 0b0100'0000) ret += make_en_passant(1);
 
-	/*
-	 if (!cpy.is_equal(pos.board)) {
+	if (!cpy.is_equal(pos.board)) {
 		std::cout << "EEEEEEEEEEEEEEEEEEERHMMM" << '\n';
 	}
-	*/
 
 	return ret;
 }
@@ -113,8 +74,8 @@ static inline uint64_t generate_castle_move(Position& pos, Square king_square) {
 	Square to = white ? (kingside ? 62 : 58) : (kingside ? 6 : 2);
 	Square middle_square = white ? (kingside ? 61 : 59) : (kingside ? 5 : 3);
 
-	bool middle_attacked = is_attacked<white>(middle_square, b);
-	bool to_attacked = is_attacked<white>(to, b);
+	bool middle_attacked = pos.is_attacked<white>(middle_square);
+	bool to_attacked = pos.is_attacked<white>(to);
 
 	bool to_occ = b.square_occ(to);
 	bool middle_occ = b.square_occ(middle_square);
@@ -146,11 +107,11 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 			if (pos.board.square_occ(to)) {
 				Piece captured = pos.board.get_piece<white>(to);
 				capture_move_wrapper<white, KING>(king_square, to, pos, captured);
-				if (!is_attacked<white>(to, pos.board)) n += count_moves<!white, depth_to_go - 1, false>(pos);
+				if (!pos.is_attacked<white>(to)) n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
 			} else {
 				plain_move<white, KING>(king_square, to, pos);
-				if (!is_attacked<white>(to, pos.board)) n += count_moves<!white, depth_to_go - 1, false>(pos);
+				if (!pos.is_attacked<white>(to)) n += count_moves<!white, depth_to_go - 1, false>(pos);
 				unmake_plain_move<white, KING>(king_square, to, pos);
 			}
 		}
@@ -167,7 +128,7 @@ template <bool white, int depth_to_go, bool print_move>
 static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
 	uint64_t ret = 0;
 	if constexpr (depth_to_go <= 1 && !print_move) {
-		ret = __builtin_popcountll(piece_move::get_pawn_double<white>(source, pos.board.occ_board) & cmt);
+		ret = popcnt(piece_move::get_pawn_double<white>(source, pos.board.occ_board) & cmt);
 	} else {
 		while (source) {
 			Square from = pop(source);
@@ -263,7 +224,7 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 
 	// Generate moves in bulk.
 	if constexpr (depth_to_go <= 1 && !print_move) {
-		ret += __builtin_popcountll(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
+		ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
 	}
 
 	// For all remaining pieces.
@@ -271,7 +232,7 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 		Square from = pop(pieces);
 		BitBoard captures = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, blockers) & cmt_captures;
 		if constexpr (depth_to_go <= 1 && !print_move) {
-			ret += __builtin_popcountll(captures);
+			ret += popcnt(captures);
 		} else {
 			BitBoard non_captures = piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, blockers) & cmt_free;
 			// Non-captures.
@@ -287,12 +248,11 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 template <bool white, Piece p, int depth_to_go, bool print_move>
 static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	uint64_t ret = 0;
-
 	// For all instances of given piece.
 	while (pieces) {
 		Square from = pop(pieces);
 		if constexpr (depth_to_go <= 1 && !print_move) {
-			ret += __builtin_popcountll(cmt & make_reach_board<white, p>(from, pos.board));
+			ret += popcnt(cmt & make_reach_board<white, p>(from, pos.board));
 		} else {
 			BitBoard captures;
 			BitBoard non_captures;
@@ -365,10 +325,10 @@ uint64_t count_moves(Position& pos) {
 	// ret += generate_castle_move<white, true, depth_to_go, print_move>(pos, king_square);
 	// ret += generate_castle_move<white, false, depth_to_go, print_move>occ_board(pos, king_square);
 no_castle:
-	// Generate moves.all         Board::is_equal(Board const&
-	ret += generate_any<white, QUEEN, depth_to_go, print_move>(pos);
+	// Generate moves.
 	ret += generate_any<white, ROOK, depth_to_go, print_move>(pos);
 	ret += generate_any<white, BISHOP, depth_to_go, print_move>(pos);
+	ret += generate_any<white, QUEEN, depth_to_go, print_move>(pos);
 	ret += generate_any<white, KNIGHT, depth_to_go, print_move>(pos);
 	ret += generate_any<white, PAWN, depth_to_go, print_move>(pos);
 	ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);

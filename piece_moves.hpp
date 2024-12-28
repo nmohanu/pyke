@@ -109,6 +109,25 @@ constexpr static std::array<std::array<uint64_t, 64>, 64> create_betweens() {
 	return ret;
 }
 
+// Returns the reach of a given piece. For pawns, it returns the reach without double push.
+template <bool white, Piece piece>
+static inline BitBoard make_reach_board(Square square, Board& b) {
+	switch (piece) {
+	case PAWN:
+		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, occb);
+	case KING:
+		return piece_move::get_king_move(square);
+	case ROOK:
+		return piece_move::get_rook_move(square, occb);
+	case BISHOP:
+		return piece_move::get_bishop_move(square, occb);
+	case KNIGHT:
+		return piece_move::get_knight_move(square);
+	case QUEEN:
+		return piece_move::get_queen_move(square, occb);
+	}
+}
+
 const static std::array<std::array<uint64_t, 64>, 64> between_squares = create_betweens();
 
 #endif
