@@ -21,8 +21,8 @@ public:
 		data |= file;
 	}
 
-	template <bool white>
-	inline std::pair<Square, Square> get_ep_squares(int offset) {
+	template <bool white, int offset>
+	inline std::pair<Square, Square> get_ep_squares() {
 		// Rank to move to.
 		File to = data & 0b00001111;
 		// From which file the pawn comes.

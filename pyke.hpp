@@ -1,7 +1,5 @@
 #include <cassert>
 #include <cstdint>
-#include <iostream>
-#include <string>
 
 #include "gamestate.hpp"
 #include "make_move.hpp"
@@ -20,22 +18,25 @@ namespace pyke {
 template <bool white, int dtg, bool print_move>
 uint64_t count_moves(Position& pos);
 
+// Make ep move and ocunt. Offset is whether ep comes from left or right.
+template <bool white, int offset, int dtg, bool print_move>
+static inline uint64_t make_en_passant(Position& pos, Square ksq) {
+	sq_pair epsq = pos.gamestate.get_ep_squares<white, offset>();
+
+	ep_move<white>(epsq.first, epsq.second, pos);
+	uint64_t loc_ret = !pos.is_attacked<white>(ksq) ? count_moves<!white, dtg - 1, false>(pos) : 0;
+	unmake_ep_move<white>(epsq.first, epsq.second, pos);
+
+	if (loc_ret && print_move) print_movecnt(epsq.first, epsq.second, loc_ret);
+	return loc_ret;
+};
+
 // Count nodes following from ep moves.
 template <bool white, int dtg, bool print_move>
-static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
+static inline uint64_t generate_ep_moves(Position& pos, Square ksq) {
 	uint8_t ep = pos.gamestate.get_en_passant();
-	auto make_en_passant = [&](int8_t from_offset) {
-		sq_pair epsq = pos.gamestate.get_ep_squares<white>(from_offset);
-
-		ep_move<white>(epsq.first, epsq.second, pos);
-		uint64_t loc_ret = !pos.is_attacked<white>(king_sq) ? count_moves<!white, dtg - 1, false>(pos) : 0;
-		unmake_ep_move<white>(epsq.first, epsq.second, pos);
-
-		if (loc_ret && print_move) print_movecnt(epsq.first, epsq.second, loc_ret);
-		return loc_ret;
-	};
-
-	return (ep & 0x80 ? make_en_passant(-1) : 0) + (ep & 0x40 ? make_en_passant(1) : 0);
+	return (ep & 0x80 ? make_en_passant<white, -1, dtg, print_move>(pos, ksq) : 0)
+		+ (ep & 0x40 ? make_en_passant<white, 1, dtg, print_move>(pos, ksq) : 0);
 }
 
 /*
