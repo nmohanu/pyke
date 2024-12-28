@@ -1,8 +1,6 @@
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
 #include "gamestate.hpp"
@@ -22,47 +20,22 @@ namespace pyke {
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos);
 
-template <bool white, int depth_to_go, bool print_move>
+// Count nodes following from ep moves.
+template <bool white, int dtg, bool print_move>
 static inline uint64_t generate_ep_moves(Position& pos, Square king_sq) {
 	uint8_t ep = pos.gamestate.get_en_passant();
-	// In most cases, no ep is possible.
-	if (!ep) return 0;
-	Board cpy = pos.board.copy();
-	uint64_t ret = 0;
 	auto make_en_passant = [&](int8_t from_offset) {
-		uint64_t loc_ret = 0;
-		// Rank to move to.
-		File to = ep & 0b00001111;
-		// From which file the pawn comes.
-		File from = to + from_offset;
-		// The start and end rank.
-		Rank start_rank = white ? 3 : 4;
-		Rank end_rank = white ? 2 : 5;
-		// Start and end square.
-		Square start_square = from + start_rank * 8;
-		Square end_square = to + end_rank * 8;
+		sq_pair epsq = pos.gamestate.get_ep_squares<white>(from_offset);
 
-		ep_move<white>(start_square, end_square, pos);
-		if (!pos.is_attacked<white>(king_sq)) {
-			if constexpr (depth_to_go <= 1)
-				loc_ret += 1;
-			else
-				loc_ret += count_moves<!white, depth_to_go - 1, false>(pos);
-		}
-		unmake_ep_move<white>(start_square, end_square, pos);
+		ep_move<white>(epsq.first, epsq.second, pos);
+		uint64_t loc_ret = !pos.is_attacked<white>(king_sq) ? count_moves<!white, dtg - 1, false>(pos) : 0;
+		unmake_ep_move<white>(epsq.first, epsq.second, pos);
 
-		if (loc_ret && print_move) print_movecnt(start_square, end_square, loc_ret);
+		if (loc_ret && print_move) print_movecnt(epsq.first, epsq.second, loc_ret);
 		return loc_ret;
 	};
 
-	if (ep & 0b1000'0000) ret += make_en_passant(-1);
-	if (ep & 0b0100'0000) ret += make_en_passant(1);
-
-	if (!cpy.is_equal(pos.board)) {
-		std::cout << "EEEEEEEEEEEEEEEEEEERHMMM" << '\n';
-	}
-
-	return ret;
+	return (ep & 0x80 ? make_en_passant(-1) : 0) + (ep & 0x40 ? make_en_passant(1) : 0);
 }
 
 // Create the castling move for given player and direction.
@@ -101,19 +74,15 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 	while (cmt) {
 		Square to = pop(cmt);
 		uint64_t n = 0;
-		if constexpr (depth_to_go < 1 && !print_move) {
-			throw std::invalid_argument("Code should not reach this point.");
+		if (pos.board.square_occ(to)) {
+			Piece captured = pos.board.get_piece<white>(to);
+			capture_move_wrapper<white, KING>(king_square, to, pos, captured);
+			if (!pos.is_attacked<white>(to)) n += count_moves<!white, depth_to_go - 1, false>(pos);
+			unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
 		} else {
-			if (pos.board.square_occ(to)) {
-				Piece captured = pos.board.get_piece<white>(to);
-				capture_move_wrapper<white, KING>(king_square, to, pos, captured);
-				if (!pos.is_attacked<white>(to)) n += count_moves<!white, depth_to_go - 1, false>(pos);
-				unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
-			} else {
-				plain_move<white, KING>(king_square, to, pos);
-				if (!pos.is_attacked<white>(to)) n += count_moves<!white, depth_to_go - 1, false>(pos);
-				unmake_plain_move<white, KING>(king_square, to, pos);
-			}
+			plain_move<white, KING>(king_square, to, pos);
+			if (!pos.is_attacked<white>(to)) n += count_moves<!white, depth_to_go - 1, false>(pos);
+			unmake_plain_move<white, KING>(king_square, to, pos);
 		}
 		if (print_move && n)
 			std::cout << make_chess_notation(king_square) << make_chess_notation(to) << ": " << std::to_string(n)
@@ -188,9 +157,7 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 	while (cmt) {
 		uint64_t n = 0;
 		Square to = pop(cmt);
-		if constexpr (depth_to_go <= 1 && !print_move) {
-			throw std::invalid_argument("Code should not have reached this point.");
-		} else if constexpr (capture) {
+		if constexpr (capture) {
 			// Capture moves.
 			const Piece captured = pos.board.get_piece<!white>(to);
 			capture_move_wrapper<white, p>(from, to, pos, captured);
@@ -306,33 +273,36 @@ static inline uint64_t generate_any(Position& pos) {
 // Create move list for given position.
 template <bool white, int depth_to_go, bool print_move>
 uint64_t count_moves(Position& pos) {
-	if constexpr (depth_to_go < 1) return 1;
-	uint64_t ret = 0;
-	// Make king mask.
-	Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
-	pos.msk = new MaskSet;
-	pos.msk->create_masks<white>(pos.board, king_square);
-	ret += generate_king_moves<white, depth_to_go, print_move>(pos.msk->can_move_to, king_square, pos);
-	// Conditionals only taken when king is in check. If double check, only king can move. Else, limit the
-	// target squares to the checkmask and skip castling moves..
-	if (pos.msk->checkers >= 2)
+	if constexpr (depth_to_go < 1)
+		return 1;
+	else {
+		uint64_t ret = 0;
+		// Make king mask.
+		Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
+		pos.msk = new MaskSet;
+		pos.msk->create_masks<white>(pos.board, king_square);
+		ret += generate_king_moves<white, depth_to_go, print_move>(pos.msk->can_move_to, king_square, pos);
+		// Conditionals only taken when king is in check. If double check, only king can move. Else, limit the
+		// target squares to the checkmask and skip castling moves..
+		if (pos.msk->checkers >= 2)
+			return ret;
+		else if (pos.msk->checkers) {
+			pos.msk->can_move_to &= pos.msk->check_mask;
+			goto no_castle;
+		}
+		// Castling moves.
+		// ret += generate_castle_move<white, true, depth_to_go, print_move>(pos, king_square);
+		// ret += generate_castle_move<white, false, depth_to_go, print_move>occ_board(pos, king_square);
+	no_castle:
+		// Generate moves.
+		ret += generate_any<white, ROOK, depth_to_go, print_move>(pos);
+		ret += generate_any<white, BISHOP, depth_to_go, print_move>(pos);
+		ret += generate_any<white, QUEEN, depth_to_go, print_move>(pos);
+		ret += generate_any<white, KNIGHT, depth_to_go, print_move>(pos);
+		ret += generate_any<white, PAWN, depth_to_go, print_move>(pos);
+		ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);
 		return ret;
-	else if (pos.msk->checkers) {
-		pos.msk->can_move_to &= pos.msk->check_mask;
-		goto no_castle;
 	}
-	// Castling moves.
-	// ret += generate_castle_move<white, true, depth_to_go, print_move>(pos, king_square);
-	// ret += generate_castle_move<white, false, depth_to_go, print_move>occ_board(pos, king_square);
-no_castle:
-	// Generate moves.
-	ret += generate_any<white, ROOK, depth_to_go, print_move>(pos);
-	ret += generate_any<white, BISHOP, depth_to_go, print_move>(pos);
-	ret += generate_any<white, QUEEN, depth_to_go, print_move>(pos);
-	ret += generate_any<white, KNIGHT, depth_to_go, print_move>(pos);
-	ret += generate_any<white, PAWN, depth_to_go, print_move>(pos);
-	ret += generate_ep_moves<white, depth_to_go, print_move>(pos, king_square);
-	return ret;
 }
 
 };	// namespace pyke

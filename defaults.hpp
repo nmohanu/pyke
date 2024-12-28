@@ -13,6 +13,7 @@ typedef uint64_t BitBoard;
 typedef uint8_t Flag;
 typedef uint8_t Rank;
 typedef uint8_t File;
+typedef std::pair<Square, Square> sq_pair;
 
 // Default bitboards.
 constexpr uint64_t INIT_ROOK_SQUARES = 0b1000000100000000000000000000000000000000000000000000000010000001ULL;

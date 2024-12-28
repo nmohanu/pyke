@@ -1,5 +1,7 @@
 #include <cstdint>
 
+#include "defaults.hpp"
+
 #ifndef GAMESTATE_H
 #define GAMESTATE_H
 
@@ -17,6 +19,22 @@ public:
 			data |= 0b0100'0000;
 		}
 		data |= file;
+	}
+
+	template <bool white>
+	inline std::pair<Square, Square> get_ep_squares(int offset) {
+		// Rank to move to.
+		File to = data & 0b00001111;
+		// From which file the pawn comes.
+		File from = to + offset;
+		// The start and end rank.
+		Rank start_rank = white ? 3 : 4;
+		Rank end_rank = white ? 2 : 5;
+		// Start and end square.
+		Square start_square = from + start_rank * 8;
+		Square end_square = to + end_rank * 8;
+
+		return std::pair<Square, Square>(start_square, end_square);
 	}
 
 	inline void reset_en_passant() { data &= ~0xff; }
