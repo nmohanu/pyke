@@ -52,7 +52,6 @@ static void unmake_move_piece(Square from, Square to, Board& b) {
 // Do a plain, non capturing move.
 template <bool white, Piece p>
 static void plain_move(Square from, Square to, Position& pos) {
-	if constexpr (p == KING) pos.gamestate.rm_cr<white>();
 	pos.moved();
 	move_piece<white, p>(from, to, pos.board);
 }
@@ -67,7 +66,6 @@ static void unmake_plain_move(Square from, Square to, Position& pos) {
 // Castle and update castling rights.
 template <bool white, uint8_t code>
 static void castle_move(Position& pos) {
-	pos.gamestate.rm_cr<white>();
 	pos.moved();
 	move_piece<white, KING>(king_start_squares[code], king_end_squares[code], pos.board);
 	move_piece<white, ROOK>(rook_start_squares[code], rook_end_squares[code], pos.board);
@@ -84,7 +82,6 @@ static void unmake_castle_move(Position& pos) {
 // Do capture move.
 template <bool white, Piece p, Piece captured>
 static void capture_move(Square from, Square to, Position& pos) {
-	if constexpr (p == KING) pos.gamestate.rm_cr<white>();
 	pos.moved();
 	remove_from_board<!white, captured>(pos.board, to);
 	move_piece<white, p>(from, to, pos.board);
@@ -244,7 +241,7 @@ static void move_from_string(std::string m, Position& p) {
 	bool white = p.white_turn;
 	Piece captured_b = p.board.get_piece<true>(to);
 	Piece captured_w = p.board.get_piece<false>(to);
-
+	std::cout << "ON MOVE: " << white << '\n';
 	Piece move_w = p.board.get_piece<true>(from);
 
 	if (captured_w != EMPTY) {
@@ -253,7 +250,7 @@ static void move_from_string(std::string m, Position& p) {
 		remove_from_board(p.board, to, captured_b, false);
 	}
 
-	move_piece(from, to, p.board, white, move_w == EMPTY ? p.board.get_piece<false>(from) : move_w);
+	move_piece(from, to, p.board, white, !white ? p.board.get_piece<false>(from) : move_w);
 
 	p.white_turn = !p.white_turn;
 }

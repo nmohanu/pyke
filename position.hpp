@@ -38,6 +38,10 @@ struct Position {
 		msk = masks.pop();
 	}
 
+	inline BitBoard orth_mask() { return msk->pinmask_orth; }
+
+	inline BitBoard diag_mask() { return msk->pinmask_dg; }
+
 	// Returns whether a square is under attack.
 	template <bool white>
 	inline bool is_attacked(Square square) {
@@ -51,8 +55,6 @@ struct Position {
 				& (board.get_piece_board<!white, BISHOP>() | board.get_piece_board<!white, QUEEN>()))
 			|| (get_king_move(square) & board.get_piece_board<!white, KING>());
 	}
-
-	void print_position();
 };
 
 #endif

@@ -118,8 +118,10 @@ static inline BitBoard make_reach_board(Square square, Board& b) {
 	case KING:
 		return piece_move::get_king_move(square);
 	case ROOK:
+	case QUEEN_ORTH:
 		return piece_move::get_rook_move(square, occb);
 	case BISHOP:
+	case QUEEN_DIAG:
 		return piece_move::get_bishop_move(square, occb);
 	case KNIGHT:
 		return piece_move::get_knight_move(square);

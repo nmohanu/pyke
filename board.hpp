@@ -77,6 +77,8 @@ struct Board {
 		case KNIGHT:
 			return white ? &w_knight : &b_knight;
 		case QUEEN:
+		case QUEEN_DIAG:
+		case QUEEN_ORTH:
 			return white ? &w_queen : &b_queen;
 		}
 	}
@@ -121,6 +123,8 @@ struct Board {
 
 	// Returns whether a square is occupied or not.
 	inline bool square_occ(Square square) { return get_bit_64(occ_board, square); }
+
+	void print_board();
 };
 
 #endif

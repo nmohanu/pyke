@@ -20,9 +20,9 @@ int main(int argc, char* argv[]) {
 	// pawn_double<false>(notation_to_square("b7"), notation_to_square("b5"), pos);
 	// ep_move<true>(notation_to_square("a5"), notation_to_square("b6"), pos);
 	// std::cout << unsigned(pos.gamestate.get_data()) << '\n';
-	pos.print_position();
+	pos.board.print_board();
 	perft(pos, PERFT_TARGET - moves.size());
-	pos.print_position();
+	pos.board.print_board();
 
 	return 0;
 }

@@ -5,10 +5,41 @@
 #ifndef GAMESTATE_H
 #define GAMESTATE_H
 
-#define bq_mask (1ULL << 8)
-#define bk_mask (1ULL << 9)
-#define wq_mask (1ULL << 10)
-#define wk_mask (1ULL << 11)
+constexpr CastlingRights make_cr_flag(bool bk, bool bq, bool wk, bool wq) {
+	uint8_t ret = 0b0;
+	ret |= wk ? (1ULL << 3) : 0;
+	ret |= wq ? (1ULL << 2) : 0;
+	ret |= bk ? (1ULL << 1) : 0;
+	ret |= bq ? (1ULL) : 0;
+	return ret;
+}
+
+constexpr inline CastlingRights rm_cr_w(CastlingRights flag) { return flag & 0b0011; }
+constexpr inline CastlingRights rm_cr_b(CastlingRights flag) { return flag & 0b1100; }
+constexpr inline CastlingRights rm_cr_wk(CastlingRights flag) { return flag & ~wk_mask; }
+constexpr inline CastlingRights rm_cr_wq(CastlingRights flag) { return flag & ~wq_mask; }
+constexpr inline CastlingRights rm_cr_bk(CastlingRights flag) { return flag & ~bk_mask; }
+constexpr inline CastlingRights rm_cr_bq(CastlingRights flag) { return flag & ~bq_mask; }
+
+constexpr inline bool get_cr_bq(CastlingRights flag) { return flag & bq_mask; }
+constexpr inline bool get_cr_bk(CastlingRights flag) { return flag & bk_mask; }
+constexpr inline bool get_cr_wq(CastlingRights flag) { return flag & wq_mask; }
+constexpr inline bool get_cr_wk(CastlingRights flag) { return flag & wk_mask; }
+
+template <bool white>
+constexpr inline CastlingRights rm_cr(CastlingRights flag) {
+	return white ? rm_cr_w(flag) : rm_cr_b(flag);
+}
+
+template <bool white, bool kingside>
+constexpr inline CastlingRights rm_cr(CastlingRights flag) {
+	return white ? kingside ? rm_cr_wk(flag) : rm_cr_wq(flag) : kingside ? rm_cr_bk(flag) : rm_cr_bq(flag);
+}
+
+template <bool white, bool kingside, CastlingRights cr>
+constexpr inline bool has_cr_right() {
+	return white ? kingside ? get_cr_wk(cr) : get_cr_wq(cr) : kingside ? get_cr_bk(cr) : get_cr_bq(cr);
+}
 
 struct GameState {
 public:
@@ -40,45 +71,6 @@ public:
 	inline void reset_en_passant() { data &= ~0xff; }
 
 	inline uint8_t get_en_passant() { return data & 0xff; }
-
-	// Remove castling rights side specific.
-	inline void rm_cr_bq() { data &= ~bq_mask; }
-	inline uint8_t get_cr_bq() { return data & bq_mask; }
-	inline void rm_cr_bk() { data &= ~bk_mask; }
-	inline uint8_t get_cr_bk() { return data & bk_mask; }
-	inline void rm_cr_wq() { data &= ~wq_mask; }
-	inline uint8_t get_cr_wq() { return data & wq_mask; }
-	inline void rm_cr_wk() { data &= ~wk_mask; }
-	inline uint8_t get_cr_wk() { return data & wk_mask; }
-
-	// Remove castling rights color specific.
-	inline void rm_cr_b() {
-		rm_cr_bk();
-		rm_cr_bq();
-	}
-
-	inline void rm_cr_w() {
-		rm_cr_wk();
-		rm_cr_wq();
-	}
-
-	template <bool white>
-	void rm_cr() {
-		if constexpr (white)
-			rm_cr_w();
-		else
-			rm_cr_b();
-	}
-
-	template <bool white>
-	inline bool can_castle_queen() {
-		return white ? get_cr_wq() : get_cr_bq();
-	}
-
-	template <bool white>
-	inline bool can_castle_king() {
-		return white ? get_cr_wk() : get_cr_bk();
-	}
 
 	uint32_t get_data() { return data; }
 	void set_data(const uint32_t d) { data = d; }

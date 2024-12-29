@@ -12,9 +12,9 @@ static uint64_t perft_internal(Position& pos) {
 	uint64_t nodes;
 
 	if (pos.white_turn)
-		nodes = pyke::count_moves<true, depth, true>(pos);
+		nodes = pyke::count_moves<true, depth, true, make_cr_flag(1, 1, 1, 1)>(pos);
 	else
-		nodes = pyke::count_moves<false, depth, true>(pos);
+		nodes = pyke::count_moves<false, depth, true, make_cr_flag(1, 1, 1, 1)>(pos);
 
 	clock_t end = clock();
 	double time_cost = double(end - start) / CLOCKS_PER_SEC;

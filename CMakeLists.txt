@@ -5,4 +5,4 @@ project(Pyke)
 add_compile_options(-Ofast -march=native)
 set (CMAKE_CXX_STANDARD 20)
 
-add_executable(main main.cpp position.cpp)
+add_executable(main main.cpp position.cpp board.cpp)
