@@ -190,8 +190,12 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 			if constexpr (capture) {
 				// Capture moves.
 				const Piece captured = pos.board.get_piece<!white>(to);
+				bool rm_ks = to == rook_start_squares[2 * white];
+				bool rm_qs = to == rook_start_squares[2 * white + 1];
 				capture_move_wrapper<white, p>(from, to, pos, captured);
-				loc_ret += count_moves<!white, dtg - 1, false, cr>(pos);
+				loc_ret += rm_ks ? count_moves<!white, dtg - 1, false, rm_cr<!white, true>(cr)>(pos)
+					: rm_qs		 ? count_moves<!white, dtg - 1, false, rm_cr<!white, false>(cr)>(pos)
+								 : count_moves<!white, dtg - 1, false, cr>(pos);
 				unmake_capture_wrapper<white, p>(from, to, pos, captured);
 			} else {
 				plain_move<white, p>(from, to, pos);
