@@ -135,7 +135,7 @@ static void unmake_promo_move(Square from, Square to, Position& pos) {
 
 // Do pawn double forward move.
 template <bool white>
-static void pawn_double(Square from, Square to, Position& pos) {
+static bool pawn_double(Square from, Square to, Position& pos) {
 	pos.moved();
 	move_piece<white, PAWN>(from, to, pos.board);
 
@@ -155,6 +155,8 @@ static void pawn_double(Square from, Square to, Position& pos) {
 	// Update flag.
 	if (possible_left) pos.gamestate.set_en_passant(true, file);
 	if (possible_right) pos.gamestate.set_en_passant(false, file);
+
+	return possible_left || possible_right;
 }
 
 // Undo double pawn move.

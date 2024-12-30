@@ -16,7 +16,7 @@
 
 namespace pyke {
 
-template <bool white, int dtg, bool print_move, CastlingRights cr>
+template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep>
 uint64_t count_moves(Position& pos);
 
 // Make ep move and ocunt. Offset is whether ep comes from left or right.
@@ -101,8 +101,9 @@ static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoar
 			BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
 			while (to_board) {
 				Square to = pop(to_board);
-				pawn_double<white>(from, to, pos);
-				uint64_t loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
+				bool ep = pawn_double<white>(from, to, pos);
+				uint64_t loc_ret = ep ? count_moves<!white, dtg - 1, false, cr, true>(pos)
+									  : count_moves<!white, dtg - 1, false, cr, false>(pos);
 				unmake_pawn_double<white>(from, to, pos);
 				if constexpr (print_move) print_movecnt(from, to, loc_ret);
 				ret += loc_ret;
@@ -237,16 +238,14 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr, MoveType mt = p>
 static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
-	uint64_t ret = 0;
+	uint64_t ret = 0, captures, non_captures, piece_moves_to;
 	// For all instances of given piece.
 	while (pieces) {
 		Square from = pop(pieces);
 		if constexpr (dtg <= 1 && !print_move) {
 			ret += popcnt(cmt & make_reach_board<white, p>(from, pos.board));
 		} else {
-			BitBoard captures;
-			BitBoard non_captures;
-			BitBoard piece_moves_to = cmt & make_reach_board<white, mt>(from, pos.board);
+			piece_moves_to = cmt & make_reach_board<white, mt>(from, pos.board);
 			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
 			non_captures = piece_moves_to & ~captures;
 
@@ -275,15 +274,8 @@ static inline uint64_t generate_pawn(Position& pos) {
 
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_knight(Position& pos) {
-	BitBoard can_move_from = pos.board.get_piece_board<white, KNIGHT>();
-	BitBoard pinned_dg = can_move_from & pos.get_mask()->pinmask_dg;
-	BitBoard pinned_orth = can_move_from & pos.get_mask()->pinmask_orth;
-	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
-
-	// Unpinned + diagonally pinned + orthogonally pinned.
-	return generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos)
-		+ generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_cmt() & pos.diag_mask(), pinned_dg, pos)
-		+ generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_cmt() & pos.orth_mask(), pinned_orth, pos);
+	BitBoard cmf = pos.board.get_piece_board<white, KNIGHT>() & ~(pos.diag_mask() | pos.orth_mask());
+	return generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_mask()->can_move_to, cmf, pos);
 }
 
 template <bool white, int dtg, bool print_move, CastlingRights cr, Piece p>
@@ -305,7 +297,7 @@ static inline uint64_t generate_sliders(Position& pos) {
 		+ generate_moves<white, p, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos);
 }
 
-template <bool white, int dtg, bool print_move, CastlingRights cr>
+template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep = false>
 uint64_t count_moves(Position& pos) {
 	if constexpr (dtg < 1)
 		return 1;
@@ -334,7 +326,7 @@ uint64_t count_moves(Position& pos) {
 		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos);
 		ret += generate_pawn<white, dtg, print_move, cr>(pos);
 		ret += generate_knight<white, dtg, print_move, cr>(pos);
-		ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square);
+		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square);
 		return ret;
 	}
 }
