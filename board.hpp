@@ -104,8 +104,7 @@ struct Board {
 	// Gets the board for a given color and piece.
 	template <bool white, Piece p>
 	inline BitBoard get_piece_board() {
-		auto* b = get_board_pointer<white, p>();
-		return p == EMPTY ? 0xFFFF'FFFF'FFFF'FFFF : *b;
+		return *get_board_pointer<white, p>();
 	}
 
 	// Returns the piece on the square or EMPTY by defualt.
