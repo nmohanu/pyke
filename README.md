@@ -1,2 +1,9 @@
 # Pyke
-chess engine wip. This will be an improved version of my previous chess engine.
+Pyke is a highly optimized chess move generator / counter. Currently, Pyke is supported up to perft 8 from startposition. 
+<br>
+Perft 7: 655 MNPS on AMD 7900x.
+<br>
+TODO:
+<br>
+- Promotion moves.
+- Further optimizations.
