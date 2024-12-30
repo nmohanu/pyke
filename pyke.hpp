@@ -21,8 +21,8 @@ uint64_t count_moves(Position& pos);
 
 // Make ep move and ocunt. Offset is whether ep comes from left or right.
 template <bool white, int offset, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t make_en_passant(Position& pos, Square ksq) {
-	sq_pair epsq = pos.gamestate.get_ep_squares<white, offset>();
+static inline uint64_t make_en_passant(Position& pos, Square ksq, uint8_t ep) {
+	sq_pair epsq = get_ep_squares<white, offset>(ep);
 
 	ep_move<white>(epsq.first, epsq.second, pos);
 	uint64_t loc_ret = !pos.is_attacked<white>(ksq) ? count_moves<!white, dtg - 1, false, cr>(pos) : 0;
@@ -34,10 +34,9 @@ static inline uint64_t make_en_passant(Position& pos, Square ksq) {
 
 // Count nodes following from ep moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_ep_moves(Position& pos, Square ksq) {
-	uint8_t ep = pos.gamestate.get_en_passant();
-	return (ep & 0x80 ? make_en_passant<white, -1, dtg, print_move, cr>(pos, ksq) : 0)
-		+ (ep & 0x40 ? make_en_passant<white, 1, dtg, print_move, cr>(pos, ksq) : 0);
+static inline uint64_t generate_ep_moves(Position& pos, Square ksq, uint8_t ep) {
+	return (ep & 0x80 ? make_en_passant<white, -1, dtg, print_move, cr>(pos, ksq, ep) : 0)
+		+ (ep & 0x40 ? make_en_passant<white, 1, dtg, print_move, cr>(pos, ksq, ep) : 0);
 }
 
 // Create the castling move for given player and direction.
@@ -302,6 +301,8 @@ uint64_t count_moves(Position& pos) {
 	if constexpr (dtg < 1)
 		return 1;
 	else {
+		uint8_t ep_flag;
+		if constexpr (ep) ep_flag = pos.ep_flag;
 		// Make masks.
 		Square king_square = lbit(pos.board.get_piece_board<white, KING>());
 		pos.get_mask()->create_masks<white>(pos.board, king_square);
@@ -326,7 +327,7 @@ uint64_t count_moves(Position& pos) {
 		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos);
 		ret += generate_pawn<white, dtg, print_move, cr>(pos);
 		ret += generate_knight<white, dtg, print_move, cr>(pos);
-		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square);
+		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square, ep_flag);
 		return ret;
 	}
 }

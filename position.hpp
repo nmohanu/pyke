@@ -14,59 +14,26 @@
 template <std::size_t N>
 struct MaskList {
 	MaskSet stack[N];
-	MaskList() {
-		for (int i = 0; i < N; i++) {
-			// stack[i] = new MaskSet;
-		}
-	}
-	~MaskList() {
-		for (int i = 0; i < N; i++) {
-			// if (stack[i]) delete stack[i];
-		}
-	}
-
 	void point_next() { curr++; }
 	void point_prev() { curr--; }
-	MaskSet* pop() { return &stack[--curr]; }
 	MaskSet* top() { return &stack[curr]; }
-
 	int curr = 0;
 };
 
 struct Position {
 	Position() {}
-	Position(Position& other) {
-		gamestate.set_data(other.gamestate.get_data());
-		white_turn = other.white_turn;
-		board = other.board.copy();
-	}
 
 	Board board;
-	GameState gamestate;
-	Stack<uint32_t> history;
+	uint8_t ep_flag;
 	MaskList<1024> mask_list;
 	bool white_turn = true;
 
-	bool is_equal(Position& other);
-
-	inline void moved() {
-		// white_turn = !white_turn;
-		history.push(gamestate.get_data());
-		mask_list.point_next();
-		gamestate.reset_en_passant();
-	}
-	inline void unmoved() {
-		// white_turn = !white_turn;
-		gamestate.set_data(history.pop());
-		mask_list.point_prev();
-	}
+	inline void moved() { mask_list.point_next(); }
+	inline void unmoved() { mask_list.point_prev(); }
 
 	inline BitBoard orth_mask() { return mask_list.top()->pinmask_orth; }
-
 	inline BitBoard diag_mask() { return mask_list.top()->pinmask_dg; }
-
 	inline MaskSet* get_mask() { return mask_list.top(); }
-
 	inline BitBoard get_cmt() { return mask_list.top()->can_move_to; }
 
 	// Returns whether a square is under attack.

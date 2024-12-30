@@ -153,8 +153,9 @@ static bool pawn_double(Square from, Square to, Position& pos) {
 	bool possible_right = right_is_opp_pawn && !edge_right;
 
 	// Update flag.
-	if (possible_left) pos.gamestate.set_en_passant(true, file);
-	if (possible_right) pos.gamestate.set_en_passant(false, file);
+	pos.ep_flag = 0;
+	if (possible_left) set_en_passant(true, file, pos.ep_flag);
+	if (possible_right) set_en_passant(false, file, pos.ep_flag);
 
 	return possible_left || possible_right;
 }

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(Pyke)
 
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 add_compile_options(
     -Ofast
@@ -13,16 +13,13 @@ set (CMAKE_CXX_STANDARD 20)
 
 add_executable(main main.cpp position.cpp board.cpp)
 
-if(0)
-	if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-generate")
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-generate")
-	endif()
-endif()
-
-if(1)
-	if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-use")
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-use")
-	endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Generate")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-generate")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-generate")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-use")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-use")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0")
 endif()

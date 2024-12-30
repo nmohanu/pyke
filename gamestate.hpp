@@ -41,42 +41,28 @@ constexpr inline bool has_cr_right() {
 	return white ? kingside ? get_cr_wk(cr) : get_cr_wq(cr) : kingside ? get_cr_bk(cr) : get_cr_bq(cr);
 }
 
-struct GameState {
-public:
-	inline void set_en_passant(bool left, uint8_t file) {
-		if (left) {
-			data |= 0b1000'0000;
-		} else {
-			data |= 0b0100'0000;
-		}
-		data |= file;
+inline void set_en_passant(bool left, uint8_t file, uint8_t& data) {
+	if (left) {
+		data |= 0b1000'0000;
+	} else {
+		data |= 0b0100'0000;
 	}
+	data |= file;
+}
 
-	template <bool white, int offset>
-	inline std::pair<Square, Square> get_ep_squares() {
-		// Rank to move to.
-		File to = data & 0b00001111;
-		// From which file the pawn comes.
-		File from = to + offset;
-		// The start and end rank.
-		Rank start_rank = white ? 3 : 4;
-		Rank end_rank = white ? 2 : 5;
-		// Start and end square.
-		Square start_square = from + start_rank * 8;
-		Square end_square = to + end_rank * 8;
+template <bool white, int offset>
+inline std::pair<Square, Square> get_ep_squares(uint8_t ep) {
+	// Rank to move to.
+	File to = ep & 0b00001111;
+	// From which file the pawn comes.
+	File from = to + offset;
+	// The start and end rank.
+	Rank start_rank = white ? 3 : 4;
+	Rank end_rank = white ? 2 : 5;
+	// Start and end square.
+	Square start_square = from + start_rank * 8;
+	Square end_square = to + end_rank * 8;
 
-		return std::pair<Square, Square>(start_square, end_square);
-	}
-
-	inline void reset_en_passant() { data &= ~0xff; }
-
-	inline uint8_t get_en_passant() { return data & 0xff; }
-
-	uint32_t get_data() { return data; }
-	void set_data(const uint32_t d) { data = d; }
-
-private:
-	uint32_t data = 0;
-};
-
+	return std::pair<Square, Square>(start_square, end_square);
+}
 #endif
