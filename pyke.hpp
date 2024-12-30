@@ -175,7 +175,6 @@ static inline uint64_t generate_rook_moves(BitBoard cmt, Square from, Position& 
 	return ret;
 }
 
-// Push moves from a given position to the target squares.
 template <bool white, Piece p, bool capture, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Position& pos) {
 	if (!cmt) return 0;
@@ -235,7 +234,6 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 	return ret;
 }
 
-// Create moves given a from and to board..
 template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr, MoveType mt = p>
 static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
@@ -252,79 +250,68 @@ static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& p
 			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
 			non_captures = piece_moves_to & ~captures;
 
-			// Non-captures.
+			// Non-captures + captured.
 			ret += generate_move_or_capture<white, p, false, dtg, print_move, cr>(non_captures, from, pos);
-			// Captures.
 			ret += generate_move_or_capture<white, p, true, dtg, print_move, cr>(captures, from, pos);
 		}
 	}
 	return ret;
 }
 
-// For a given piece, generate all possible normal/capture moves.
-template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_any(Position& pos) {
-	Board& b = pos.board;
-	uint64_t ret = 0;
-	BitBoard can_move_from = b.get_piece_board<white, p>();
-
-	if constexpr (p == PAWN) {
-		BitBoard pawns_on_promo = can_move_from & (white ? promotion_from_w : promotion_from_b);
-		can_move_from &= ~pawns_on_promo;
-	}
-	// Split pinned pieces from non-pinned pieces.
+template <bool white, int dtg, bool print_move, CastlingRights cr>
+static inline uint64_t generate_pawn(Position& pos) {
+	BitBoard can_move_from = pos.board.get_piece_board<white, PAWN>();
+	BitBoard pawns_on_promo = can_move_from & (white ? promotion_from_w : promotion_from_b);
+	can_move_from &= ~pawns_on_promo;
 	BitBoard pinned_dg = can_move_from & pos.get_mask()->pinmask_dg;
 	BitBoard pinned_orth = can_move_from & pos.get_mask()->pinmask_orth;
 	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
 
-	if constexpr (p == PAWN) {
-		ret += generate_pawn_moves<white, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos);
-		ret += generate_pawn_moves<white, dtg, print_move, cr>(
-			pos.get_mask()->can_move_to & pos.get_mask()->pinmask_dg, pinned_dg, pos
-		);
-		ret += generate_pawn_moves<white, dtg, print_move, cr>(
-			pos.get_mask()->can_move_to & pos.get_mask()->pinmask_orth, pinned_orth, pos
-		);
-	} else {
-		// Unpinned.
-		ret += generate_moves<white, p, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos);
-		// Pinned diagonally.
-		ret += generate_moves<white, p, dtg, print_move, cr>(
-			pos.get_mask()->can_move_to & pos.get_mask()->pinmask_dg, pinned_dg, pos
-		);
-		// Pinned orthogonally.
-		ret += generate_moves<white, p, dtg, print_move, cr>(
-			pos.get_mask()->can_move_to & pos.get_mask()->pinmask_orth, pinned_orth, pos
-		);
-	}
-	return ret;
+	// Unpinned + diagonally pinned + orthogonally pinned.
+	return generate_pawn_moves<white, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos)
+		+ generate_pawn_moves<white, dtg, print_move, cr>(pos.get_cmt() & pos.diag_mask(), pinned_dg, pos)
+		+ generate_pawn_moves<white, dtg, print_move, cr>(pos.get_cmt() & pos.orth_mask(), pinned_orth, pos);
 }
 
-// For a given piece, generate all possible normal/capture moves.
+template <bool white, int dtg, bool print_move, CastlingRights cr>
+static inline uint64_t generate_knight(Position& pos) {
+	BitBoard can_move_from = pos.board.get_piece_board<white, KNIGHT>();
+	BitBoard pinned_dg = can_move_from & pos.get_mask()->pinmask_dg;
+	BitBoard pinned_orth = can_move_from & pos.get_mask()->pinmask_orth;
+	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
+
+	// Unpinned + diagonally pinned + orthogonally pinned.
+	return generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos)
+		+ generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_cmt() & pos.diag_mask(), pinned_dg, pos)
+		+ generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_cmt() & pos.orth_mask(), pinned_orth, pos);
+}
+
 template <bool white, int dtg, bool print_move, CastlingRights cr, Piece p>
 static inline uint64_t generate_sliders(Position& pos) {
-	constexpr bool diag = p == QUEEN_DIAG || p == BISHOP;
 	BitBoard src = pos.board.get_piece_board<white, p>();
-	// Unpinned.
 	BitBoard unpinned = src & ~pos.diag_mask() & ~pos.orth_mask();
-	uint64_t ret = generate_moves<white, p, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos);
+	BitBoard pinned, pin_cmt;
 
-	// Pinned.
-	BitBoard pinned = src & (diag ? pos.diag_mask() : pos.orth_mask()) & ~(diag ? pos.orth_mask() : pos.diag_mask());
-	ret += generate_moves<white, p, dtg, print_move, cr>(
-		pos.get_mask()->can_move_to & (diag ? pos.diag_mask() : pos.orth_mask()), pinned, pos
-	);
-	return ret;
+	if constexpr (p == QUEEN_DIAG || p == BISHOP) {
+		pinned = src & pos.diag_mask() & ~pos.orth_mask();
+		pin_cmt = pos.get_mask()->can_move_to & pos.diag_mask();
+	} else {
+		pinned = src & pos.orth_mask() & ~pos.diag_mask();
+		pin_cmt = pos.get_mask()->can_move_to & pos.orth_mask();
+	}
+
+	// Pinned + unpinned.
+	return generate_moves<white, p, dtg, print_move, cr>(pin_cmt, pinned, pos)
+		+ generate_moves<white, p, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos);
 }
 
-// Create move list for given position.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 uint64_t count_moves(Position& pos) {
 	if constexpr (dtg < 1)
 		return 1;
 	else {
 		// Make masks.
-		Square king_square = __builtin_clzll(pos.board.get_piece_board<white, KING>());
+		Square king_square = lbit(pos.board.get_piece_board<white, KING>());
 		pos.get_mask()->create_masks<white>(pos.board, king_square);
 
 		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(pos.get_mask()->can_move_to, king_square, pos);
@@ -345,8 +332,8 @@ uint64_t count_moves(Position& pos) {
 		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_DIAG>(pos);
 		ret += generate_sliders<white, dtg, print_move, cr, ROOK>(pos);
 		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos);
-		ret += generate_any<white, KNIGHT, dtg, print_move, cr>(pos);
-		ret += generate_any<white, PAWN, dtg, print_move, cr>(pos);
+		ret += generate_pawn<white, dtg, print_move, cr>(pos);
+		ret += generate_knight<white, dtg, print_move, cr>(pos);
 		ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square);
 		return ret;
 	}

@@ -44,38 +44,14 @@ inline uint8_t notation_to_square(std::string notation) {
 	return ((row * 8) + column);
 }
 
+// Returns the position of the least significant bit.
+inline uint8_t lbit(uint64_t n) { return __builtin_clzll(n); }
+
 inline uint8_t pop(uint64_t& b) {
 	Square index = __builtin_clzll(b);
 	b ^= (1ULL << (63 - index));
 	return index;
 }
-
-/*
-static std::string move_to_string(Move move) {
-	std::string start_notation = make_chess_notation(move.get_from());
-	std::string destination_notation = make_chess_notation(move.get_to());
-	std::string promotion_letter = "";
-	if (move.get_type() == MOVE_PROMO) {
-		switch (move.get_content()) {
-		case 1:
-			promotion_letter = "q";
-			break;
-		case 2:
-			promotion_letter = "r";
-			break;
-		case 3:
-			promotion_letter = "b";
-			break;
-		case 4:
-			promotion_letter = "n";
-			break;
-		default:
-			break;
-		}
-	}
-	return start_notation + destination_notation + promotion_letter;
-}
-*/
 
 inline constexpr uint8_t square_to_shamt(Square s) { return 63 - s; }
 

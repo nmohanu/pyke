@@ -50,13 +50,13 @@ struct Position {
 	bool is_equal(Position& other);
 
 	inline void moved() {
-		white_turn = !white_turn;
+		// white_turn = !white_turn;
 		history.push(gamestate.get_data());
 		mask_list.point_next();
 		gamestate.reset_en_passant();
 	}
 	inline void unmoved() {
-		white_turn = !white_turn;
+		// white_turn = !white_turn;
 		gamestate.set_data(history.pop());
 		mask_list.point_prev();
 	}
@@ -66,6 +66,8 @@ struct Position {
 	inline BitBoard diag_mask() { return mask_list.top()->pinmask_dg; }
 
 	inline MaskSet* get_mask() { return mask_list.top(); }
+
+	inline BitBoard get_cmt() { return mask_list.top()->can_move_to; }
 
 	// Returns whether a square is under attack.
 	template <bool white>
