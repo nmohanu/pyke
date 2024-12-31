@@ -52,21 +52,18 @@ static void unmake_move_piece(Square from, Square to, Board& b) {
 // Do a plain, non capturing move.
 template <bool white, Piece p>
 static void plain_move(Square from, Square to, Position& pos) {
-	pos.moved();
 	move_piece<white, p>(from, to, pos.board);
 }
 
 // Undo a non capturing move.
 template <bool white, Piece p>
 static void unmake_plain_move(Square from, Square to, Position& pos) {
-	pos.unmoved();
 	unmake_move_piece<white, p>(from, to, pos.board);
 }
 
 // Castle and update castling rights.
 template <bool white, uint8_t code>
 static void castle_move(Position& pos) {
-	pos.moved();
 	move_piece<white, KING>(king_start_squares[code], king_end_squares[code], pos.board);
 	move_piece<white, ROOK>(rook_start_squares[code], rook_end_squares[code], pos.board);
 }
@@ -74,7 +71,6 @@ static void castle_move(Position& pos) {
 // Undo castling move.
 template <bool white, uint8_t code>
 static void unmake_castle_move(Position& pos) {
-	pos.unmoved();
 	unmake_move_piece<white, KING>(king_start_squares[code], king_end_squares[code], pos.board);
 	unmake_move_piece<white, ROOK>(rook_start_squares[code], rook_end_squares[code], pos.board);
 }
@@ -82,7 +78,6 @@ static void unmake_castle_move(Position& pos) {
 // Do capture move.
 template <bool white, Piece p, Piece captured>
 static void capture_move(Square from, Square to, Position& pos) {
-	pos.moved();
 	remove_from_board<!white, captured>(pos.board, to);
 	move_piece<white, p>(from, to, pos.board);
 }
@@ -90,7 +85,6 @@ static void capture_move(Square from, Square to, Position& pos) {
 // Undo capture move.
 template <bool white, Piece p, Piece captured>
 static void unmake_capture_move(Square from, Square to, Position& pos) {
-	pos.unmoved();
 	unmake_move_piece<white, p>(from, to, pos.board);
 	add_to_board<!white, captured>(pos.board, to);
 }
@@ -98,7 +92,6 @@ static void unmake_capture_move(Square from, Square to, Position& pos) {
 // Do ep move.
 template <bool white>
 static void ep_move(Square from, Square to, Position& pos) {
-	pos.moved();
 	Square captured_sq = white ? (to + 8) : (to - 8);
 	move_piece<white, PAWN>(from, to, pos.board);
 	remove_from_board<!white, PAWN>(pos.board, captured_sq);
@@ -107,7 +100,6 @@ static void ep_move(Square from, Square to, Position& pos) {
 // Undo ep move.
 template <bool white>
 static void unmake_ep_move(Square from, Square to, Position& pos) {
-	pos.unmoved();
 	Square captured_sq = white ? (to + 8) : (to - 8);
 	unmake_move_piece<white, PAWN>(from, to, pos.board);
 	add_to_board<!white, PAWN>(pos.board, captured_sq);
@@ -116,7 +108,6 @@ static void unmake_ep_move(Square from, Square to, Position& pos) {
 // Do promo move.
 template <bool white, Piece p, Piece captured>
 static void promo_move(Square from, Square to, Position& pos) {
-	pos.moved();
 	// Check if promotion was also a capture.
 	if constexpr (captured != EMPTY) remove_from_board<white, captured>(pos.board, to);
 	remove_from_board<white, PAWN>(pos.board, from);
@@ -126,7 +117,6 @@ static void promo_move(Square from, Square to, Position& pos) {
 // Undo promo move.
 template <bool white, Piece p, Piece captured>
 static void unmake_promo_move(Square from, Square to, Position& pos) {
-	pos.unmoved();
 	add_to_board<white, PAWN>(pos.board, from, PAWN);
 	remove_from_board<white, p>(pos.board, to);
 	// Check if promotion was also a capture.
@@ -136,7 +126,6 @@ static void unmake_promo_move(Square from, Square to, Position& pos) {
 // Do pawn double forward move.
 template <bool white>
 static bool pawn_double(Square from, Square to, Position& pos) {
-	pos.moved();
 	move_piece<white, PAWN>(from, to, pos.board);
 
 	// pawn moved two forward, update en passant status.
@@ -163,7 +152,6 @@ static bool pawn_double(Square from, Square to, Position& pos) {
 // Undo double pawn move.
 template <bool white>
 static void unmake_pawn_double(Square from, Square to, Position& pos) {
-	pos.unmoved();
 	unmake_move_piece<white, PAWN>(from, to, pos.board);
 }
 

@@ -257,43 +257,43 @@ static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& p
 }
 
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_pawn(Position& pos) {
+static inline uint64_t generate_pawn(Position& pos, MaskSet& msk) {
 	BitBoard can_move_from = pos.board.get_piece_board<white, PAWN>();
 	BitBoard pawns_on_promo = can_move_from & (white ? promotion_from_w : promotion_from_b);
 	can_move_from &= ~pawns_on_promo;
-	BitBoard pinned_dg = can_move_from & pos.get_mask()->pinmask_dg;
-	BitBoard pinned_orth = can_move_from & pos.get_mask()->pinmask_orth;
+	BitBoard pinned_dg = can_move_from & msk.pinmask_dg;
+	BitBoard pinned_orth = can_move_from & msk.pinmask_orth;
 	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
 
 	// Unpinned + diagonally pinned + orthogonally pinned.
-	return generate_pawn_moves<white, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos)
-		+ generate_pawn_moves<white, dtg, print_move, cr>(pos.get_cmt() & pos.diag_mask(), pinned_dg, pos)
-		+ generate_pawn_moves<white, dtg, print_move, cr>(pos.get_cmt() & pos.orth_mask(), pinned_orth, pos);
+	return generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to, unpinned, pos)
+		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to & msk.pinmask_dg, pinned_dg, pos)
+		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to & msk.pinmask_orth, pinned_orth, pos);
 }
 
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_knight(Position& pos) {
-	BitBoard cmf = pos.board.get_piece_board<white, KNIGHT>() & ~(pos.diag_mask() | pos.orth_mask());
-	return generate_moves<white, KNIGHT, dtg, print_move, cr>(pos.get_mask()->can_move_to, cmf, pos);
+static inline uint64_t generate_knight(Position& pos, MaskSet& msk) {
+	BitBoard cmf = pos.board.get_piece_board<white, KNIGHT>() & ~(msk.pinmask_dg | msk.pinmask_orth);
+	return generate_moves<white, KNIGHT, dtg, print_move, cr>(msk.can_move_to, cmf, pos);
 }
 
 template <bool white, int dtg, bool print_move, CastlingRights cr, Piece p>
-static inline uint64_t generate_sliders(Position& pos) {
+static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
 	BitBoard src = pos.board.get_piece_board<white, p>();
-	BitBoard unpinned = src & ~pos.diag_mask() & ~pos.orth_mask();
+	BitBoard unpinned = src & ~msk.pinmask_dg & ~msk.pinmask_orth;
 	BitBoard pinned, pin_cmt;
 
 	if constexpr (p == QUEEN_DIAG || p == BISHOP) {
-		pinned = src & pos.diag_mask() & ~pos.orth_mask();
-		pin_cmt = pos.get_mask()->can_move_to & pos.diag_mask();
+		pinned = src & msk.pinmask_dg & ~msk.pinmask_orth;
+		pin_cmt = msk.can_move_to & msk.pinmask_dg;
 	} else {
-		pinned = src & pos.orth_mask() & ~pos.diag_mask();
-		pin_cmt = pos.get_mask()->can_move_to & pos.orth_mask();
+		pinned = src & msk.pinmask_orth & ~msk.pinmask_dg;
+		pin_cmt = msk.can_move_to & msk.pinmask_orth;
 	}
 
 	// Pinned + unpinned.
 	return generate_moves<white, p, dtg, print_move, cr>(pin_cmt, pinned, pos)
-		+ generate_moves<white, p, dtg, print_move, cr>(pos.get_mask()->can_move_to, unpinned, pos);
+		+ generate_moves<white, p, dtg, print_move, cr>(msk.can_move_to, unpinned, pos);
 }
 
 template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep = false>
@@ -305,28 +305,28 @@ uint64_t count_moves(Position& pos) {
 		if constexpr (ep) ep_flag = pos.ep_flag;
 		// Make masks.
 		Square king_square = lbit(pos.board.get_piece_board<white, KING>());
-		pos.get_mask()->create_masks<white>(pos.board, king_square);
+		MaskSet msk = create_masks<white>(pos.board, king_square);
 
-		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(pos.get_mask()->can_move_to, king_square, pos);
+		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.can_move_to, king_square, pos);
 		// If double check, only king can move. Else, limit the target squares to the checkmask and skip castling.
-		switch (pos.get_mask()->checkers) {
+		switch (msk.checkers) {
 		case 0:
 			ret += generate_castle_move<white, true, dtg, print_move, cr>(pos, king_square);
 			ret += generate_castle_move<white, false, dtg, print_move, cr>(pos, king_square);
 			break;
 		case 1:
-			pos.get_mask()->can_move_to &= pos.get_mask()->check_mask;
+			msk.can_move_to &= msk.check_mask;
 			break;
 		default:
 			return ret;
 		}
 		// Generate moves.
-		ret += generate_sliders<white, dtg, print_move, cr, BISHOP>(pos);
-		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_DIAG>(pos);
-		ret += generate_sliders<white, dtg, print_move, cr, ROOK>(pos);
-		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos);
-		ret += generate_pawn<white, dtg, print_move, cr>(pos);
-		ret += generate_knight<white, dtg, print_move, cr>(pos);
+		ret += generate_sliders<white, dtg, print_move, cr, BISHOP>(pos, msk);
+		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_DIAG>(pos, msk);
+		ret += generate_sliders<white, dtg, print_move, cr, ROOK>(pos, msk);
+		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos, msk);
+		ret += generate_pawn<white, dtg, print_move, cr>(pos, msk);
+		ret += generate_knight<white, dtg, print_move, cr>(pos, msk);
 		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square, ep_flag);
 		return ret;
 	}
