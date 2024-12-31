@@ -12,9 +12,9 @@ struct MaskSet {
 	BitBoard can_move_to;
 
 	// Pinmask.
-	BitBoard pinmask_dg;
-	BitBoard pinmask_orth;
-	BitBoard check_mask;
+	BitBoard pinmask_dg = 0;
+	BitBoard pinmask_orth = 0;
+	BitBoard check_mask = 0;
 
 	uint8_t checkers = 0;
 
@@ -27,18 +27,15 @@ MaskSet create_masks(Board& b, Square king_square) {
 	MaskSet ret;
 	ret.can_move_to = ~b.get_player_occ<white>();
 
-	BitBoard c_mask = 0, p_diag_mask = 0, p_orth_mask = 0;
-
 	BitBoard k_checkers = piece_move::get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
 	BitBoard p_checkers =
 		piece_move::get_pawn_diags<white>(square_to_mask(king_square)) & b.get_piece_board<!white, PAWN>();
 
 	if (k_checkers) {
-		c_mask |= k_checkers;
+		ret.check_mask |= k_checkers;
 		ret.checkers++;
-	}
-	if (p_checkers) {
-		c_mask |= p_checkers;
+	} else if (p_checkers) {
+		ret.check_mask |= p_checkers;
 		ret.checkers++;
 	}
 
@@ -47,7 +44,6 @@ MaskSet create_masks(Board& b, Square king_square) {
 	BitBoard eq = b.get_piece_board<!white, QUEEN>();
 	BitBoard eb = b.get_piece_board<!white, BISHOP>();
 	BitBoard er = b.get_piece_board<!white, ROOK>();
-
 	BitBoard diag_pinners = piece_move::get_bishop_move(king_square, opp_board) & (eb | eq);
 	BitBoard orth_pinners = piece_move::get_rook_move(king_square, opp_board) & (er | eq);
 
@@ -56,25 +52,20 @@ MaskSet create_masks(Board& b, Square king_square) {
 			Square src = pop(pinboard);
 			BitBoard between = between_squares[king_square][src];
 
-			switch (__builtin_popcountll(between & own_board)) {
+			switch (popcnt(between & own_board)) {
 			case 0:
-				c_mask |= between | square_to_mask(src);
+				ret.check_mask |= between;
 				ret.checkers++;
 				break;
 			case 1:
-				goal_mask |= between | square_to_mask(src);
+				goal_mask |= between;
 				break;
 			}
 		}
 	};
 
-	process_pinners(diag_pinners, p_diag_mask);
-	process_pinners(orth_pinners, p_orth_mask);
-
-	ret.pinmask_dg = p_diag_mask;
-	ret.pinmask_orth = p_orth_mask;
-	ret.check_mask = c_mask;
-
+	process_pinners(diag_pinners, ret.pinmask_dg);
+	process_pinners(orth_pinners, ret.pinmask_orth);
 	return ret;
 }
 

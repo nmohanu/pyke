@@ -13,14 +13,14 @@ static inline BitBoard get_knight_move(const Square square) { return KNIGHT_MOVE
 // Bishop moving logic.
 constexpr static inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
 	const BitBoard mask = bishop_mask_table[square];
-	const BitBoard occupancy = ((occ & mask) * bishop_magic_numbers[square]) >> __builtin_popcountll(~mask);
+	const BitBoard occupancy = ((occ & mask) * bishop_magic_numbers[square]) >> popcnt(~mask);
 	return bishop_attacks[square][occupancy];
 }
 
 // Rook move logic.
 constexpr static inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
 	const BitBoard mask = rook_mask_table[square];
-	const BitBoard occupancy = ((occ & mask) * rook_magic_numbers[square]) >> __builtin_popcountll(~mask);
+	const BitBoard occupancy = ((occ & mask) * rook_magic_numbers[square]) >> popcnt(~mask);
 	return rook_attacks[square][occupancy];
 }
 
@@ -97,10 +97,10 @@ constexpr static std::array<std::array<uint64_t, 64>, 64> create_betweens() {
 
 			if (rs1 & square_to_mask(s2)) {
 				BitBoard orth = rs1 & rs2;
-				ret[s1][s2] |= orth;
+				ret[s1][s2] |= orth | square_to_mask(s2);
 			} else if (ds1 & square_to_mask(s2)) {
 				BitBoard diag = ds1 & ds2;
-				ret[s1][s2] |= diag;
+				ret[s1][s2] |= diag | square_to_mask(s2);
 			} else {
 				continue;
 			}

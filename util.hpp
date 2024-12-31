@@ -47,15 +47,25 @@ inline uint8_t notation_to_square(std::string notation) {
 // Returns the position of the least significant bit.
 inline uint8_t lbit(uint64_t n) { return __builtin_clzll(n); }
 
+inline constexpr uint8_t square_to_shamt(Square s) { return 63 - s; }
+
+constexpr std::array<BitBoard, 64> make_square_masks() {
+	std::array<BitBoard, 64> ret = {};
+	for (Square s = 0; s < 64; s++) {
+		ret[s] = 1ULL << square_to_shamt(s);
+	}
+	return ret;
+}
+
+static constexpr std::array<BitBoard, 64> square_masks = make_square_masks();
+
+inline constexpr uint64_t square_to_mask(Square s) { return square_masks[s]; }
+
 inline uint8_t pop(uint64_t& b) {
-	Square index = __builtin_clzll(b);
+	Square index = lbit(b);
 	b ^= (1ULL << (63 - index));
 	return index;
 }
-
-inline constexpr uint8_t square_to_shamt(Square s) { return 63 - s; }
-
-inline constexpr uint64_t square_to_mask(Square s) { return 1ULL << square_to_shamt(s); }
 
 static inline void print_movecnt(Square start_square, Square end_square, uint64_t cnt) {
 	std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": " << std::to_string(cnt)
