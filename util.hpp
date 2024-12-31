@@ -16,28 +16,6 @@ inline std::string make_chess_notation(int index) {
 	return std::string(1, column) + std::string(1, row);
 }
 
-inline bool get_bit_64(uint64_t num, uint8_t pos) { return (num & (1ULL << (63 - pos))) != 0; }
-
-inline void print_bitboard(uint64_t bitboard) {
-	printf("\n");
-	// loop over board ranks.
-	for (int rank = 0; rank < 8; rank++) {
-		// loop over board files.
-		for (int file = 0; file < 8; file++) {
-			// convert file & rank into square index.
-			int square = rank * 8 + file;
-
-			// print ranks.
-			if (!file) printf("  %d ", 8 - rank);
-
-			// print bit state (either 1 or 0).
-			printf(" %d", get_bit_64(bitboard, square) ? 1 : 0);
-		}
-		// print new line every rank.
-		printf("\n");
-	}
-}
-
 inline uint8_t notation_to_square(std::string notation) {
 	int column = notation[0] - 'a';
 	int row = 7 - (notation[1] - '1');
@@ -69,6 +47,8 @@ static constexpr std::array<BitBoard, 64> inv_square_masks = make_inv_square_mas
 
 inline constexpr uint64_t square_to_mask(Square s) { return square_masks[s]; }
 
+inline bool get_bit_64(uint64_t num, uint8_t s) { return (num & (square_to_mask(s))); }
+
 inline uint8_t pop(uint64_t& b) {
 	Square index = lbit(b);
 	b ^= (1ULL << (63 - index));
@@ -78,6 +58,26 @@ inline uint8_t pop(uint64_t& b) {
 static inline void print_movecnt(Square start_square, Square end_square, uint64_t cnt) {
 	std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": " << std::to_string(cnt)
 			  << '\n';
+}
+
+inline void print_bitboard(uint64_t bitboard) {
+	printf("\n");
+	// loop over board ranks.
+	for (int rank = 0; rank < 8; rank++) {
+		// loop over board files.
+		for (int file = 0; file < 8; file++) {
+			// convert file & rank into square index.
+			int square = rank * 8 + file;
+
+			// print ranks.
+			if (!file) printf("  %d ", 8 - rank);
+
+			// print bit state (either 1 or 0).
+			printf(" %d", get_bit_64(bitboard, square) ? 1 : 0);
+		}
+		// print new line every rank.
+		printf("\n");
+	}
 }
 
 #endif

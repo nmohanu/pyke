@@ -116,7 +116,6 @@ struct Board {
 		if (get_piece_board<white, BISHOP>() & mask) return BISHOP;
 		if (get_piece_board<white, ROOK>() & mask) return ROOK;
 		if (get_piece_board<white, QUEEN>() & mask) return QUEEN;
-		if (get_piece_board<white, KING>() & mask) return KING;
 		return EMPTY;
 	}
 
