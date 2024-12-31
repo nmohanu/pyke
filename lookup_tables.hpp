@@ -449,4 +449,18 @@ constexpr std::array<std::array<uint64_t, 512>, 64> create_bishop_attacks() {
 // Table instances.
 static std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
 static std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
+
+constexpr std::array<std::array<uint64_t, 64>, 2> make_pawn_edge_masks() {
+	std::array<std::array<uint64_t, 64>, 2> ret = {};
+
+	for (int s = 0; s < 64; s++) {
+		ret[0][s] = (0xFF00ULL << (56 - (s & ~7)));
+		ret[1][s] = (0xFFULL << (48 - (s & ~7)));
+	}
+
+	return ret;
+}
+
+static std::array<std::array<uint64_t, 64>, 2> pawn_edge_masks = make_pawn_edge_masks();
+
 #endif

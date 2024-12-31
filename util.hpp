@@ -56,8 +56,16 @@ constexpr std::array<BitBoard, 64> make_square_masks() {
 	}
 	return ret;
 }
-
 static constexpr std::array<BitBoard, 64> square_masks = make_square_masks();
+
+constexpr std::array<BitBoard, 64> make_inv_square_masks() {
+	std::array<BitBoard, 64> ret = {};
+	for (Square s = 0; s < 64; s++) {
+		ret[s] = ~square_masks[s];
+	}
+	return ret;
+}
+static constexpr std::array<BitBoard, 64> inv_square_masks = make_inv_square_masks();
 
 inline constexpr uint64_t square_to_mask(Square s) { return square_masks[s]; }
 

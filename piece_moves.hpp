@@ -41,11 +41,11 @@ static inline BitBoard get_pawn_diags(const BitBoard piece_board) {
 // Only the attack squares. Used to check if king is checked by pawn.
 template <bool white>
 static inline BitBoard get_pawn_attacks(const BitBoard piece_board) {
-	Square s = __builtin_clzll(piece_board);
+	Square s = lbit(piece_board);
 	if constexpr (white)
-		return (get_pawn_diags<white>(piece_board)) & (0xFFULL << (64 - (s & ~7)));
+		return (get_pawn_diags<white>(piece_board)) & pawn_edge_masks[0][s];
 	else
-		return (get_pawn_diags<white>(piece_board)) & (0xFFULL << (48 - (s & ~7)));
+		return (get_pawn_diags<white>(piece_board)) & pawn_edge_masks[1][s];
 }
 
 // Get pawn forward.
