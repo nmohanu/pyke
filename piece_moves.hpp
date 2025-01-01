@@ -1,3 +1,5 @@
+#include <immintrin.h>
+
 #include "board.hpp"
 #include "lookup_tables.hpp"
 
@@ -27,6 +29,22 @@ constexpr static inline BitBoard get_rook_move(const Square square, const BitBoa
 // Queen move logic.
 static inline BitBoard get_queen_move(const Square square, const BitBoard occ) {
 	return piece_move::get_bishop_move(square, occ) | piece_move::get_rook_move(square, occ);
+}
+
+template <bool white>
+static inline BitBoard get_pawn_left(const BitBoard piece_board) {
+	if constexpr (white)
+		return (piece_board << 9);
+	else
+		return (piece_board >> 7);
+}
+
+template <bool white>
+static inline BitBoard get_pawn_right(const BitBoard piece_board) {
+	if constexpr (white)
+		return (piece_board << 7);
+	else
+		return (piece_board >> 9);
 }
 
 // Get pawn diagonals, without trimming any form of illegal moves or edge cases.

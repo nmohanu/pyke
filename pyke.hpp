@@ -41,10 +41,11 @@ static inline uint64_t generate_ep_moves(Position& pos, Square ksq, uint8_t ep) 
 
 // Create the castling move for given player and direction.
 template <bool white, bool kingside, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_castle_move(Position& pos, Square king_square) {
+static inline uint64_t generate_castle_move(Position& pos) {
 	Board& b = pos.board;
 	constexpr Square to = white ? (kingside ? 62 : 58) : (kingside ? 6 : 2);
 	constexpr Square middle_square = white ? (kingside ? 61 : 59) : (kingside ? 5 : 3);
+	constexpr Square king_square = white ? 60 : 4;
 
 	if (!has_cr_right<white, kingside, cr>() | b.square_occ(to) | b.square_occ(middle_square)) {
 		return 0;
@@ -189,12 +190,17 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 			if constexpr (capture) {
 				// Capture moves.
 				const Piece captured = pos.board.get_piece<!white>(to);
-				bool rm_ks = to == rook_start_squares[2 * white];
-				bool rm_qs = to == rook_start_squares[2 * white + 1];
 				capture_move_wrapper<white, p>(from, to, pos, captured);
-				loc_ret += rm_ks ? count_moves<!white, dtg - 1, false, rm_cr<!white, true>(cr)>(pos)
-					: rm_qs		 ? count_moves<!white, dtg - 1, false, rm_cr<!white, false>(cr)>(pos)
-								 : count_moves<!white, dtg - 1, false, cr>(pos);
+				if (captured == ROOK) {
+					constexpr int rook_sq_index = 2 * white;
+					const bool rm_ks = to == rook_start_squares[rook_sq_index];
+					const bool rm_qs = to == rook_start_squares[rook_sq_index + 1];
+					loc_ret += rm_ks ? count_moves<!white, dtg - 1, false, rm_cr<!white, true>(cr)>(pos)
+						: rm_qs		 ? count_moves<!white, dtg - 1, false, rm_cr<!white, false>(cr)>(pos)
+									 : count_moves<!white, dtg - 1, false, cr>(pos);
+				} else {
+					loc_ret += count_moves<!white, dtg - 1, false, cr>(pos);
+				}
 				unmake_capture_wrapper<white, p>(from, to, pos, captured);
 			} else {
 				plain_move<white, p>(from, to, pos);
@@ -218,14 +224,16 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 	uint64_t ret = generate_pawn_double<white, dtg, print_move, cr>(cmt, pos, pawns_on_start);
 
 	// Generate moves in bulk.
-	if constexpr (dtg <= 1 && !print_move) ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
-
-	while (pieces) {
-		Square from = pop(pieces);
-		BitBoard captures = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, occ) & cmt_captures;
-		if constexpr (dtg <= 1 && !print_move) {
-			ret += popcnt(captures);
-		} else {
+	if constexpr (dtg <= 1 && !print_move) {
+		ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
+		BitBoard ccl = pieces & 0x7F7F7F7F7F7F7F7F;
+		BitBoard ccr = pieces & 0xFEFEFEFEFEFEFEFE;
+		ret += popcnt(piece_move::get_pawn_left<white>(ccl) & cmt_captures);
+		ret += popcnt(piece_move::get_pawn_right<white>(ccr) & cmt_captures);
+	} else {
+		while (pieces) {
+			Square from = pop(pieces);
+			BitBoard captures = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, occ) & cmt_captures;
 			BitBoard non_captures = piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, occ) & cmt_free;
 			ret += generate_move_or_capture<white, PAWN, false, dtg, print_move, cr>(non_captures, from, pos);
 			ret += generate_move_or_capture<white, PAWN, true, dtg, print_move, cr>(captures, from, pos);
@@ -311,8 +319,8 @@ uint64_t count_moves(Position& pos) {
 		// If double check, only king can move. Else, limit the target squares to the checkmask and skip castling.
 		switch (msk.checkers) {
 		case 0:
-			ret += generate_castle_move<white, true, dtg, print_move, cr>(pos, king_square);
-			ret += generate_castle_move<white, false, dtg, print_move, cr>(pos, king_square);
+			ret += generate_castle_move<white, true, dtg, print_move, cr>(pos);
+			ret += generate_castle_move<white, false, dtg, print_move, cr>(pos);
 			break;
 		case 1:
 			msk.can_move_to &= msk.check_mask;

@@ -1,7 +1,7 @@
 # Pyke
 Pyke is a highly optimized chess move generator / counter. Currently, Pyke is supported up to perft 8 from startposition. 
 <br>
-Perft 7: 976.709 MNPS on AMD 7900x.
+Perft 7: 1207.21 MNPS on AMD 7900x.
 <br>
 TODO:
 <br>
