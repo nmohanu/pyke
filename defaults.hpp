@@ -67,4 +67,7 @@ inline constexpr BitBoard no_edges = 0b0111'1110'0111'1110'0111'1110'0111'1110'0
 #define wq_mask (0b0100)
 #define wk_mask (0b1000)
 
+#define can_capture_left(b)	 b & 0x7F7F7F7F7F7F7F7F
+#define can_capture_right(b) b & 0xFEFEFEFEFEFEFEFE
+
 #endif	// !DEFAULTS_H

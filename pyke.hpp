@@ -124,16 +124,16 @@ static inline uint64_t count_plain(BitBoard cmt, Square from, Position& pos) {
 template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr, MoveType mt = p>
 static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
-	uint64_t ret = 0, captures, non_captures, piece_moves_to;
+	uint64_t ret = 0;
 	// For all instances of given piece.
 	while (pieces) {
 		Square from = pop(pieces);
 		if constexpr (dtg <= 1 && !print_move) {
 			ret += popcnt(cmt & make_reach_board<white, p>(from, pos.board));
 		} else {
-			piece_moves_to = cmt & make_reach_board<white, mt>(from, pos.board);
-			captures = piece_moves_to & (white ? pos.board.b_board : pos.board.w_board);
-			non_captures = piece_moves_to & ~captures;
+			BitBoard piece_moves_to = cmt & make_reach_board<white, mt>(from, pos.board);
+			BitBoard captures = piece_moves_to & pos.board.occ_board;
+			BitBoard non_captures = piece_moves_to & ~captures;
 
 			// Non-captures + captured.
 			ret += count_plain<white, p, dtg, print_move, cr>(non_captures, from, pos);
@@ -306,11 +306,9 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 
 	// Generate moves in bulk.
 	if constexpr (dtg <= 1 && !print_move) {
-		BitBoard ccl = pieces & 0x7F7F7F7F7F7F7F7F;
-		BitBoard ccr = pieces & 0xFEFEFEFEFEFEFEFE;
 		ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
-		ret += popcnt(piece_move::get_pawn_left<white>(ccl) & cmt_captures);
-		ret += popcnt(piece_move::get_pawn_right<white>(ccr) & cmt_captures);
+		ret += popcnt(piece_move::get_pawn_left<white>(can_capture_left(pieces)) & cmt_captures);
+		ret += popcnt(piece_move::get_pawn_right<white>(can_capture_right(pieces)) & cmt_captures);
 	} else {
 		while (pieces) {
 			Square from = pop(pieces);
