@@ -15,6 +15,7 @@ struct MaskSet {
 	BitBoard pinmask_dg = 0;
 	BitBoard pinmask_orth = 0;
 	BitBoard check_mask = 0;
+	BitBoard unpinned = 0;
 
 	uint8_t checkers = 0;
 
@@ -66,6 +67,7 @@ MaskSet create_masks(Board& b, Square king_square) {
 
 	process_pinners(diag_pinners, ret.pinmask_dg);
 	process_pinners(orth_pinners, ret.pinmask_orth);
+	ret.unpinned = ~(ret.pinmask_dg | ret.pinmask_orth);
 	return ret;
 }
 

@@ -27,31 +27,13 @@ inline uint8_t lbit(uint64_t n) { return __builtin_clzll(n); }
 
 inline constexpr uint8_t square_to_shamt(Square s) { return 63 - s; }
 
-constexpr std::array<BitBoard, 64> make_square_masks() {
-	std::array<BitBoard, 64> ret = {};
-	for (Square s = 0; s < 64; s++) {
-		ret[s] = 1ULL << square_to_shamt(s);
-	}
-	return ret;
-}
-static constexpr std::array<BitBoard, 64> square_masks = make_square_masks();
-
-constexpr std::array<BitBoard, 64> make_inv_square_masks() {
-	std::array<BitBoard, 64> ret = {};
-	for (Square s = 0; s < 64; s++) {
-		ret[s] = ~square_masks[s];
-	}
-	return ret;
-}
-static constexpr std::array<BitBoard, 64> inv_square_masks = make_inv_square_masks();
-
-inline constexpr uint64_t square_to_mask(Square s) { return square_masks[s]; }
+inline constexpr uint64_t square_to_mask(Square s) { return 1ULL << (63 - s); }
 
 inline bool get_bit_64(uint64_t num, uint8_t s) { return (num & (square_to_mask(s))); }
 
 inline uint8_t pop(uint64_t& b) {
 	Square index = lbit(b);
-	b ^= (1ULL << (63 - index));
+	b ^= square_to_mask(index);
 	return index;
 }
 
