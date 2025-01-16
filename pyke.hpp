@@ -69,23 +69,30 @@ static inline uint64_t generate_castle_move(Position& pos) {
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Position& pos) {
 	cmt &= piece_move::get_king_move(king_square);
+	BitBoard captures = cmt & pos.board.get_player_occ<!white>();
+	BitBoard non_captures = cmt & ~captures;
 	uint64_t ret = 0;
-	while (cmt) {
-		Square to = pop(cmt);
+	while (non_captures) {
+		Square to = pop(non_captures);
 		uint64_t loc_ret = 0;
-		if (pos.board.square_occ(to)) {
-			Piece captured = pos.board.get_piece<!white>(to);
-			capture_move_wrapper<white, KING>(king_square, to, pos, captured);
-			if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
-			unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
-		} else {
-			plain_move<white, KING>(king_square, to, pos);
-			if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
-			unmake_plain_move<white, KING>(king_square, to, pos);
-		}
+		plain_move<white, KING>(king_square, to, pos);
+		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
+		unmake_plain_move<white, KING>(king_square, to, pos);
 		if (print_move && loc_ret) print_movecnt(king_square, to, loc_ret);
 		ret += loc_ret;
 	}
+
+	while (captures) {
+		Square to = pop(captures);
+		uint64_t loc_ret = 0;
+		Piece captured = pos.board.get_piece<!white>(to);
+		capture_move_wrapper<white, KING>(king_square, to, pos, captured);
+		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
+		unmake_capture_wrapper<white, KING>(king_square, to, pos, captured);
+		if (print_move && loc_ret) print_movecnt(king_square, to, loc_ret);
+		ret += loc_ret;
+	}
+
 	return ret;
 }
 
@@ -214,6 +221,7 @@ static inline uint64_t generate_move_or_capture(BitBoard cmt, Square from, Posit
 	}
 }
 
+// Concrete generator for pawn moves. Creates double pushes, pushes and captures, in bulk if possible.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
@@ -225,9 +233,9 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 
 	// Generate moves in bulk.
 	if constexpr (dtg <= 1 && !print_move) {
-		ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
 		BitBoard ccl = pieces & 0x7F7F7F7F7F7F7F7F;
 		BitBoard ccr = pieces & 0xFEFEFEFEFEFEFEFE;
+		ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
 		ret += popcnt(piece_move::get_pawn_left<white>(ccl) & cmt_captures);
 		ret += popcnt(piece_move::get_pawn_right<white>(ccr) & cmt_captures);
 	} else {
@@ -242,6 +250,7 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 	return ret;
 }
 
+// Splits the reachable squares into non-captures and captures and calls the appropriate function.
 template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr, MoveType mt = p>
 static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
@@ -264,27 +273,29 @@ static inline uint64_t generate_moves(BitBoard cmt, BitBoard pieces, Position& p
 	return ret;
 }
 
+// Count pawn moves, wrapper function.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_pawn(Position& pos, MaskSet& msk) {
 	BitBoard can_move_from = pos.board.get_piece_board<white, PAWN>();
 	BitBoard pawns_on_promo = can_move_from & (white ? promotion_from_w : promotion_from_b);
+	BitBoard pinmask = msk.pinmask_dg | msk.pinmask_orth;
 	can_move_from &= ~pawns_on_promo;
-	BitBoard pinned_dg = can_move_from & msk.pinmask_dg;
-	BitBoard pinned_orth = can_move_from & msk.pinmask_orth;
-	BitBoard unpinned = can_move_from & ~(pinned_dg | pinned_orth);
+	BitBoard pinned = can_move_from & pinmask;
+	BitBoard unpinned = can_move_from & ~pinmask;
 
-	// Unpinned + diagonally pinned + orthogonally pinned.
+	// Unpinned + pinned.
 	return generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to, unpinned, pos)
-		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to & msk.pinmask_dg, pinned_dg, pos)
-		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to & msk.pinmask_orth, pinned_orth, pos);
+		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to & pinmask, pinned, pos);
 }
 
+// Count knight moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_knight(Position& pos, MaskSet& msk) {
 	BitBoard cmf = pos.board.get_piece_board<white, KNIGHT>() & ~(msk.pinmask_dg | msk.pinmask_orth);
 	return generate_moves<white, KNIGHT, dtg, print_move, cr>(msk.can_move_to, cmf, pos);
 }
 
+// Count slider moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr, Piece p>
 static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
 	BitBoard src = pos.board.get_piece_board<white, p>();
@@ -304,17 +315,17 @@ static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
 		+ generate_moves<white, p, dtg, print_move, cr>(msk.can_move_to, unpinned, pos);
 }
 
+// Main function, calculate nodes from given position and depth.
 template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep = false>
 uint64_t count_moves(Position& pos) {
 	if constexpr (dtg < 1)
 		return 1;
 	else {
-		uint8_t ep_flag;
-		if constexpr (ep) ep_flag = pos.ep_flag;
+		uint8_t ep_flag = ep ? pos.ep_flag : 0;
 		// Make masks.
 		Square king_square = lbit(pos.board.get_piece_board<white, KING>());
 		MaskSet msk = create_masks<white>(pos.board, king_square);
-
+		// King moves can always be generated.
 		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.can_move_to, king_square, pos);
 		// If double check, only king can move. Else, limit the target squares to the checkmask and skip castling.
 		switch (msk.checkers) {
