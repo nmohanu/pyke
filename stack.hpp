@@ -30,17 +30,20 @@ private:
 // Custom stack.
 template <typename T>
 struct Stack {
-	T stack[1024];
+	T stack[64];
 	Stack() : last(stack) {};
 	void push(T val) { *last++ = val; }
 	T pop() {
 		if (last == stack) return *last;
 		return *(--last);
 	}
-	T* top() { return (last); }
+	T& top() { return (*last); }
+	T& minustwo() { return *(last - 2); }
 	MoveList<T> from(T* t) { return MoveList<T>(t, last, *this); }
 	void destroy(MoveList<T>* sub) { last = sub->begin(); }
 	void set_last(T* l) { last = l; }
+	void point_prev() { last--; }
+	void point_next() { last++; }
 
 private:
 	T* last;

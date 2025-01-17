@@ -380,7 +380,9 @@ uint64_t count_moves(Position& pos) {
 		uint8_t ep_flag = ep ? pos.ep_flag : 0;
 		// Make masks.
 		Square king_square = lbit(pos.board.get_piece_board<white, KING>());
-		MaskSet msk = create_masks<white>(pos.board, king_square);
+		MaskSet& msk = pos.masks.top();
+		pos.masks.point_next();
+		create_masks<white>(pos.board, king_square, msk);
 		// King moves can always be generated.
 		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.can_move_to, king_square, pos);
 		// If double check, only king can move. Else, limit the target squares to the checkmask and skip castling.
@@ -403,6 +405,7 @@ uint64_t count_moves(Position& pos) {
 		ret += generate_pawn<white, dtg, print_move, cr>(pos, msk);
 		ret += generate_knight<white, dtg, print_move, cr>(pos, msk);
 		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, king_square, ep_flag);
+		pos.masks.point_prev();
 		return ret;
 	}
 }

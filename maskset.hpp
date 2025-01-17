@@ -24,8 +24,11 @@ struct MaskSet {
 
 // Create all the needed masks for the current position.
 template <bool white>
-MaskSet create_masks(Board& b, Square king_square) {
-	MaskSet ret;
+void create_masks(Board& b, Square king_square, MaskSet& ret) {
+	ret.pinmask_dg = 0;
+	ret.pinmask_orth = 0;
+	ret.check_mask = 0;
+	ret.checkers = 0;
 	ret.can_move_to = ~b.get_player_occ<white>();
 
 	BitBoard k_checkers = piece_move::get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
@@ -68,7 +71,6 @@ MaskSet create_masks(Board& b, Square king_square) {
 	process_pinners(diag_pinners, ret.pinmask_dg);
 	process_pinners(orth_pinners, ret.pinmask_orth);
 	ret.unpinned = ~(ret.pinmask_dg | ret.pinmask_orth);
-	return ret;
 }
 
 #endif

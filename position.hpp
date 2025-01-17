@@ -17,6 +17,7 @@ struct Position {
 	Board board;
 	uint8_t ep_flag;
 	bool white_turn = true;
+	Stack<MaskSet> masks;
 
 	// Returns whether a square is under attack.
 	template <bool white>
