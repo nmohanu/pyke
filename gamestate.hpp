@@ -1,6 +1,7 @@
 #include <cstdint>
 
 #include "defaults.hpp"
+#include "lookup_tables.hpp"
 
 #ifndef GAMESTATE_H
 #define GAMESTATE_H
@@ -52,17 +53,14 @@ inline void set_en_passant(bool left, uint8_t file, uint8_t& data) {
 
 template <bool white, int offset>
 inline std::pair<Square, Square> get_ep_squares(uint8_t ep) {
-	// Rank to move to.
-	File to = ep & 0b00001111;
-	// From which file the pawn comes.
-	File from = to + offset;
-	// The start and end rank.
-	Rank start_rank = white ? 3 : 4;
-	Rank end_rank = white ? 2 : 5;
-	// Start and end square.
-	Square start_square = from + start_rank * 8;
-	Square end_square = to + end_rank * 8;
-
-	return std::pair<Square, Square>(start_square, end_square);
+	if constexpr (white && (offset == -1)) {
+		return ep_sqs_wl[ep & 0b00001111];
+	} else if constexpr (white) {
+		return ep_sqs_wr[ep & 0b00001111];
+	} else if constexpr (!white && (offset == -1)) {
+		return ep_sqs_bl[ep & 0b00001111];
+	} else {
+		return ep_sqs_br[ep & 0b00001111];
+	}
 }
 #endif

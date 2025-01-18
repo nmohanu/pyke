@@ -538,4 +538,17 @@ static std::array<BitBoard, rook_pext_size> init_rook_pext_atk() {
 }
 static const std::array<BitBoard, rook_pext_size> rook_pext_atk = init_rook_pext_atk();
 
+// En pessant squares.
+static constexpr inline std::pair<Square, Square> ep_sqs_wl[8] =
+	{{0, 0}, {24, 17}, {25, 18}, {26, 19}, {27, 20}, {28, 21}, {29, 22}, {30, 23}};
+
+static constexpr inline std::pair<Square, Square> ep_sqs_wr[8] =
+	{{25, 16}, {26, 17}, {27, 18}, {28, 19}, {29, 20}, {30, 21}, {31, 22}, {0, 0}};
+
+static constexpr inline std::pair<Square, Square> ep_sqs_bl[8] =
+	{{0, 0}, {32, 41}, {33, 42}, {34, 43}, {35, 44}, {36, 45}, {37, 46}, {38, 47}};
+
+static constexpr inline std::pair<Square, Square> ep_sqs_br[8] =
+	{{33, 40}, {34, 41}, {35, 42}, {36, 43}, {37, 44}, {38, 45}, {39, 46}, {0, 0}};
+
 #endif

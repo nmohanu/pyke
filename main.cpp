@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <ios>
 #include <iostream>
 #include <string>
@@ -21,5 +22,9 @@ int main(int argc, char* argv[]) {
 	perft(pos, PERFT_TARGET - moves.size());
 	pos.board.print_board();
 
+	for (uint8_t i = 0; i < 8; i++) {
+		std::cout << unsigned(get_ep_squares<false, -1>(i).first) << ","
+				  << unsigned(get_ep_squares<false, -1>(i).second) << '\n';
+	}
 	return 0;
 }
