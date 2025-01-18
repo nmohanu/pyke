@@ -1,4 +1,6 @@
 
+#include <immintrin.h>
+
 #include <cstdint>
 #include <iostream>
 #include <string>
@@ -61,5 +63,7 @@ inline void print_bitboard(uint64_t bitboard) {
 		printf("\n");
 	}
 }
+
+inline constexpr BitBoard pext(BitBoard bits, BitBoard mask) { return _pext_u64(bits, mask); }
 
 #endif

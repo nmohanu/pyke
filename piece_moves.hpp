@@ -1,5 +1,7 @@
 #include <immintrin.h>
 
+#include <cstdint>
+
 #include "board.hpp"
 #include "lookup_tables.hpp"
 
@@ -14,16 +16,12 @@ static inline BitBoard get_knight_move(const Square square) { return KNIGHT_MOVE
 
 // Bishop moving logic.
 constexpr static inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
-	const BitBoard mask = bishop_mask_table[square];
-	const BitBoard occupancy = ((occ & mask) * bishop_magic_numbers[square]) >> popcnt(~mask);
-	return bishop_attacks[square][occupancy];
+	return bishop_pext_atk[bishop_pext_offset[square] + static_cast<uint32_t>(pext(occ, bishop_mask_table[square]))];
 }
 
 // Rook move logic.
 constexpr static inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
-	const BitBoard mask = rook_mask_table[square];
-	const BitBoard occupancy = ((occ & mask) * rook_magic_numbers[square]) >> popcnt(~mask);
-	return rook_attacks[square][occupancy];
+	return rook_pext_atk[rook_pext_offset[square] + static_cast<uint32_t>(pext(occ, rook_mask_table[square]))];
 }
 
 // Queen move logic.

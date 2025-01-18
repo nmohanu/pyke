@@ -1,4 +1,7 @@
+#include <immintrin.h>
+
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <cstdlib>
 
@@ -178,7 +181,6 @@ constexpr uint64_t bishop_magic_numbers[64] = {
 	0x4050404440404ULL,	   0x3c0808410220200ULL,  0x1080820820060210ULL, 0x2112080446200010ULL, 0x581104180800210ULL,
 	0x108060845042010ULL,  0x10190041080202ULL,	  0x2004208a004208ULL,	 0x40040844404084ULL
 };
-
 // Create lookup tables for bisshops and rooks.
 
 constexpr uint64_t make_bishop_mask(uint8_t square) {
@@ -447,8 +449,8 @@ constexpr std::array<std::array<uint64_t, 512>, 64> create_bishop_attacks() {
 };
 
 // Table instances.
-static std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
-static std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
+static const std::array<std::array<uint64_t, 512>, 64> bishop_attacks = create_bishop_attacks();
+static const std::array<std::array<uint64_t, 4096>, 64> rook_attacks = create_rook_attacks();
 
 constexpr std::array<std::array<uint64_t, 64>, 2> make_pawn_edge_masks() {
 	std::array<std::array<uint64_t, 64>, 2> ret = {};
@@ -461,6 +463,79 @@ constexpr std::array<std::array<uint64_t, 64>, 2> make_pawn_edge_masks() {
 	return ret;
 }
 
-static std::array<std::array<uint64_t, 64>, 2> pawn_edge_masks = make_pawn_edge_masks();
+static const std::array<std::array<uint64_t, 64>, 2> pawn_edge_masks = make_pawn_edge_masks();
+
+// PEXT
+
+static constexpr uint32_t rook_pext_size = 102400;
+static constexpr uint32_t bishop_pext_size = 5248;
+
+// Rook offsets.
+static std::array<BitBoard, 64> init_rook_pext_offset() {
+	std::array<BitBoard, 64> ret;
+	uint32_t offset = 0;
+	for (Square s = 0; s < 64; s++) {
+		uint32_t perm_amount = 1 << popcnt(rook_mask_table[s]);
+		ret[s] = offset;
+		offset += perm_amount;
+	}
+
+	return ret;
+}
+
+static const std::array<BitBoard, 64> rook_pext_offset = init_rook_pext_offset();
+
+// Bishop offsets.
+static std::array<BitBoard, 64> init_bishop_pext_offset() {
+	std::array<BitBoard, 64> ret;
+	uint32_t offset = 0;
+	for (Square s = 0; s < 64; s++) {
+		uint32_t perm_amount = 1 << popcnt(bishop_mask_table[s]);
+		ret[s] = offset;
+		offset += perm_amount;
+	}
+
+	return ret;
+}
+
+static const std::array<BitBoard, 64> bishop_pext_offset = init_bishop_pext_offset();
+
+// Bishop attacks.
+static std::array<BitBoard, bishop_pext_size> init_bishop_pext_atk() {
+	std::array<BitBoard, bishop_pext_size> ret{};
+	uint32_t offset = 0;
+	for (Square s = 0; s < 64; ++s) {
+		uint32_t mask_bits = popcnt(bishop_mask_table[s]);
+		uint32_t perm_amount = 1 << mask_bits;
+
+		for (uint32_t perm = 0; perm < perm_amount; ++perm) {
+			BitBoard blocker = _pdep_u64(static_cast<uint64_t>(perm), bishop_mask_table[s]);
+			ret[offset + perm] = bishop_attack_on_fly(s, blocker);
+		}
+		offset += perm_amount;
+	}
+
+	return ret;
+}
+static const std::array<BitBoard, bishop_pext_size> bishop_pext_atk = init_bishop_pext_atk();
+
+// Rook attacks.
+static std::array<BitBoard, rook_pext_size> init_rook_pext_atk() {
+	std::array<BitBoard, rook_pext_size> ret{};
+	uint32_t offset = 0;
+	for (Square s = 0; s < 64; ++s) {
+		uint32_t mask_bits = popcnt(rook_mask_table[s]);
+		uint32_t perm_amount = 1 << mask_bits;
+
+		for (uint32_t perm = 0; perm < perm_amount; ++perm) {
+			BitBoard blocker = _pdep_u64(static_cast<uint64_t>(perm), rook_mask_table[s]);
+			ret[offset + perm] = rook_attack_on_fly(s, blocker);
+		}
+		offset += perm_amount;
+	}
+
+	return ret;
+}
+static const std::array<BitBoard, rook_pext_size> rook_pext_atk = init_rook_pext_atk();
 
 #endif
