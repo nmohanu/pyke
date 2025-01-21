@@ -7,7 +7,7 @@ TODO:
 <br>
 - Promotion moves.
 - Further optimizations.
-- Make moves and specifify perft depth on runtime.
+- Make moves and specify perft depth on runtime.
 
 # How to compile
 From project root: 
