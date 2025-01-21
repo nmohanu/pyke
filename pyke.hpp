@@ -166,8 +166,16 @@ static inline uint64_t generate_castle_move(Position& pos) {
 	} else {
 		constexpr uint8_t code = white ? (kingside ? 0 : 1) : (kingside ? 2 : 3);
 		castle_move<white, code>(pos.board);
+		if constexpr (white)
+			pos.wksq = to;
+		else
+			pos.bksq = to;
 		uint64_t ret = count_moves<!white, dtg - 1, false, white ? rm_cr_w(cr) : rm_cr_b(cr)>(pos);
 		unmake_castle_move<white, code>(pos.board);
+		if constexpr (white)
+			pos.wksq = king_square;
+		else
+			pos.bksq = king_square;
 		if (ret && print_move) print_movecnt(king_square, to, ret);
 		return ret;
 	}
@@ -186,6 +194,10 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 		BitBoard move = square_to_mask(king_square) | square_to_mask(to);
 
 		plain_move<white, KING>(pos.board, move);
+		if constexpr (white)
+			pos.wksq = to;
+		else
+			pos.bksq = to;
 		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_plain_move<white, KING>(pos.board, move);
 
@@ -201,12 +213,21 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Pos
 		BitBoard to_mask = square_to_mask(to);
 
 		capture_move_wrapper<white, KING>(pos.board, captured, move, to_mask);
+		if constexpr (white)
+			pos.wksq = to;
+		else
+			pos.bksq = to;
 		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_capture_wrapper<white, KING>(pos.board, captured, move, to_mask);
 
 		if (print_move && loc_ret) print_movecnt(king_square, to, loc_ret);
 		ret += loc_ret;
 	}
+
+	if constexpr (white)
+		pos.wksq = king_square;
+	else
+		pos.bksq = king_square;
 
 	return ret;
 }
@@ -379,7 +400,7 @@ uint64_t count_moves(Position& pos) {
 	else {
 		uint8_t ep_flag = ep ? pos.ep_flag : 0;
 		// Make masks.
-		Square king_square = lbit(pos.board.get_piece_board<white, KING>());
+		Square king_square = white ? pos.wksq : pos.bksq;
 		MaskSet& msk = pos.masks.top();
 		pos.masks.point_next();
 		create_masks<white>(pos.board, king_square, msk);
