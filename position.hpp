@@ -21,9 +21,27 @@ struct Position {
 	Square bksq = 4;
 	Square wksq = 60;
 
+	template <bool white>
+	inline void set_ksq(const Square ksq) {
+		if constexpr (white) {
+			wksq = ksq;
+		} else {
+			bksq = ksq;
+		}
+	}
+
+	template <bool white>
+	inline Square get_ksq() {
+		if constexpr (white) {
+			return wksq;
+		} else {
+			return bksq;
+		}
+	}
+
 	// Returns whether a square is under attack.
 	template <bool white>
-	inline bool is_attacked(Square square) {
+	inline bool is_attacked(const Square square) {
 		return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, board.occ_board)
 				& board.get_piece_board<!white, PAWN>())
 			|| (get_knight_move(square) & board.get_piece_board<!white, KNIGHT>())
