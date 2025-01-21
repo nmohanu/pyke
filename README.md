@@ -1,5 +1,5 @@
 # Pyke
-Pyke is a highly optimized chess move generator / counter. Currently, Pyke is supported up to perft 8 from startposition. 
+Pyke is a highly optimized chess move generator / counter in progress.
 <br>
 Perft 7: 3195901860 nodes searched. 1560.41 MNPS on AMD 7900x.
 <br>
