@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.21)
 
 project(Pyke)
 
-set(CMAKE_BUILD_TYPE Release)
-
 add_compile_options(
     -Ofast
 	-funroll-loops
@@ -23,3 +21,23 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0")
 endif()
+
+# Custom target for Generate build
+add_custom_target(generate
+  COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Generate ${CMAKE_SOURCE_DIR} && make
+  COMMENT "Building in Generate mode"
+)
+
+# Custom target for Release build
+add_custom_target(release
+  COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR} && make
+  COMMENT "Building in Release mode"
+)
+
+add_dependencies(generate main) 
+add_custom_command(TARGET generate POST_BUILD
+    COMMAND ./main
+    COMMENT "Generating profile files for profile guided compilation."
+)
+
+add_dependencies(release generate)
