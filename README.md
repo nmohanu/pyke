@@ -19,7 +19,6 @@ cd build
 cmake ..
 <br>
 make release
-<<<<<<< HEAD
 <br>
 <br>
 There should now be an executable in the build folder. 
