@@ -38,7 +38,7 @@ struct Stack {
 		return *(--last);
 	}
 	T& top() { return (*last); }
-	T& minustwo() { return *(last - 2); }
+	T& go_next() { return (*last++); }
 	MoveList<T> from(T* t) { return MoveList<T>(t, last, *this); }
 	void destroy(MoveList<T>* sub) { last = sub->begin(); }
 	void set_last(T* l) { last = l; }

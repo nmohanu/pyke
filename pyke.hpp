@@ -387,9 +387,7 @@ uint64_t count_moves(Position& pos) {
 		uint8_t ep_flag = ep ? pos.ep_flag : 0;
 
 		// Make masks.
-		MaskSet& msk = pos.masks.top();
-		pos.masks.point_next();
-		create_masks<white>(pos.board, pos.get_ksq<white>(), msk);
+		MaskSet& msk = create_masks<white>(pos.board, pos.get_ksq<white>(), pos.masks.go_next());
 
 		// King moves can always be generated.
 		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.can_move_to, pos);
