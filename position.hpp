@@ -18,6 +18,8 @@ struct Position {
 	uint8_t ep_flag;
 	bool white_turn = true;
 	Stack<MaskSet> masks;
+	Square bksq = 4;
+	Square wksq = 60;
 
 	// Returns whether a square is under attack.
 	template <bool white>
