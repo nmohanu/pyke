@@ -21,6 +21,24 @@ struct Position {
 	Square bksq = 4;
 	Square wksq = 60;
 
+	template <bool white>
+	constexpr inline void set_ksq(const Square ksq) {
+		if constexpr (white) {
+			wksq = ksq;
+		} else {
+			bksq = ksq;
+		}
+	}
+
+	template <bool white>
+	constexpr inline Square get_ksq() {
+		if constexpr (white) {
+			return wksq;
+		} else {
+			return bksq;
+		}
+	}
+
 	// Returns whether a square is under attack.
 	template <bool white>
 	inline bool is_attacked(Square square) {

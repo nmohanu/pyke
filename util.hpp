@@ -64,6 +64,6 @@ inline void print_bitboard(uint64_t bitboard) {
 	}
 }
 
-inline constexpr BitBoard pext(BitBoard bits, BitBoard mask) { return _pext_u64(bits, mask); }
+inline BitBoard pext(BitBoard bits, BitBoard mask) { return _pext_u64(bits, mask); }
 
 #endif
