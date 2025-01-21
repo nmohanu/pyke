@@ -170,7 +170,7 @@ static inline uint64_t generate_castle_move(Position& pos) {
 		uint64_t ret = count_moves<!white, dtg - 1, false, white ? rm_cr_w(cr) : rm_cr_b(cr)>(pos);
 		unmake_castle_move<white, code>(pos.board);
 		pos.set_ksq<white>(ksq);
-		if (ret && print_move) print_movecnt(ksq, to, ret);
+		if constexpr (print_move) print_movecnt(ksq, to, ret);
 		return ret;
 	}
 }
@@ -193,7 +193,7 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Position& pos) {
 		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_plain_move<white, KING>(pos.board, move);
 
-		if (print_move && loc_ret) print_movecnt(ksq, to, loc_ret);
+		if constexpr (print_move) print_movecnt(ksq, to, loc_ret);
 		ret += loc_ret;
 	}
 
@@ -209,7 +209,7 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Position& pos) {
 		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_capture_wrapper<white, KING>(pos.board, captured, move, to_mask);
 
-		if (print_move && loc_ret) print_movecnt(ksq, to, loc_ret);
+		if constexpr (print_move) print_movecnt(ksq, to, loc_ret);
 		ret += loc_ret;
 	}
 
@@ -255,25 +255,31 @@ static inline uint64_t generate_promotions(Position& pos, BitBoard cmt, BitBoard
 
 // Make ep move and ocunt. Offset is whether ep comes from left or right.
 template <bool white, int offset, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t make_en_passant(Position& pos, uint8_t ep) {
+static inline uint64_t make_en_passant(Position& pos, uint8_t ep, MaskSet& msk) {
+	uint64_t loc_ret;
 	sq_pair epsq = get_ep_squares<white, offset>(ep);
 	BitBoard move = square_to_mask(epsq.first) | square_to_mask(epsq.second);
-
 	BitBoard capture_sq = square_to_mask(white ? epsq.second + 8 : epsq.second - 8);
+	if (capture_sq & msk.pinmask_dg) return 0;
 
 	ep_move<white>(pos.board, move, capture_sq);
-	uint64_t loc_ret = !pos.is_attacked<white>(pos.get_ksq<white>()) ? count_moves<!white, dtg - 1, false, cr>(pos) : 0;
+
+	if (square_to_mask(epsq.first) & msk.unpinned)
+		loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
+	else
+		loc_ret = !pos.is_attacked<white>(pos.get_ksq<white>()) ? count_moves<!white, dtg - 1, false, cr>(pos) : 0;
+
 	unmake_ep_move<white>(pos.board, move, capture_sq);
 
-	if (loc_ret && print_move) print_movecnt(epsq.first, epsq.second, loc_ret);
+	if constexpr (print_move) print_movecnt(epsq.first, epsq.second, loc_ret);
 	return loc_ret;
 };
 
 // Count nodes following from ep moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_ep_moves(Position& pos, uint8_t ep) {
-	return (ep & 0x80 ? make_en_passant<white, -1, dtg, print_move, cr>(pos, ep) : 0)
-		+ (ep & 0x40 ? make_en_passant<white, 1, dtg, print_move, cr>(pos, ep) : 0);
+static inline uint64_t generate_ep_moves(Position& pos, uint8_t ep, MaskSet& msk) {
+	return (ep & 0x80 ? make_en_passant<white, -1, dtg, print_move, cr>(pos, ep, msk) : 0)
+		+ (ep & 0x40 ? make_en_passant<white, 1, dtg, print_move, cr>(pos, ep, msk) : 0);
 }
 
 // Pawn double pushes.
@@ -412,7 +418,7 @@ uint64_t count_moves(Position& pos) {
 		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos, msk);
 		ret += generate_pawn<white, dtg, print_move, cr>(pos, msk);
 		ret += generate_knight<white, dtg, print_move, cr>(pos, msk);
-		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, ep_flag);
+		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, ep_flag, msk);
 		pos.masks.point_prev();
 		return ret;
 	}

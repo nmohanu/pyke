@@ -40,8 +40,9 @@ inline uint8_t pop(uint64_t& b) {
 }
 
 static inline void print_movecnt(Square start_square, Square end_square, uint64_t cnt) {
-	std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": " << std::to_string(cnt)
-			  << '\n';
+	if (cnt)
+		std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": " << std::to_string(cnt)
+				  << '\n';
 }
 
 inline void print_bitboard(uint64_t bitboard) {

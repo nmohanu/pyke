@@ -14,12 +14,12 @@ static inline BitBoard get_king_move(const Square square) { return KING_MOVE_SQU
 static inline BitBoard get_knight_move(const Square square) { return KNIGHT_MOVE_SQUARES[square]; }
 
 // Bishop moving logic.
-constexpr static inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
+static inline BitBoard get_bishop_move(const Square square, const BitBoard occ) {
 	return bishop_pext_atk[bishop_pext_offset[square] + static_cast<uint32_t>(pext(occ, bishop_mask_table[square]))];
 }
 
 // Rook move logic.
-constexpr static inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
+static inline BitBoard get_rook_move(const Square square, const BitBoard occ) {
 	return rook_pext_atk[rook_pext_offset[square] + static_cast<uint32_t>(pext(occ, rook_mask_table[square]))];
 }
 
