@@ -32,7 +32,7 @@ struct MaskSet {
 
 // Create all the needed masks for the current position.
 template <bool white>
-MaskSet& create_masks(Board& b, Square king_square, MaskSet& ret) {
+void create_masks(Board& b, Square king_square, MaskSet& ret) {
 	ret.reset();
 	ret.can_move_to = ~b.get_player_occ<white>();
 
@@ -76,8 +76,6 @@ MaskSet& create_masks(Board& b, Square king_square, MaskSet& ret) {
 	process_pinners(diag_pinners, ret.pinmask_dg);
 	process_pinners(orth_pinners, ret.pinmask_orth);
 	ret.unpinned = ~(ret.pinmask_dg | ret.pinmask_orth);
-
-	return ret;
 }
 
 #endif
