@@ -7,3 +7,14 @@ TODO:
 <br>
 - Promotion moves.
 - Further optimizations.
+
+# How to compile
+From project root: 
+<br>
+mkdir build
+<br>
+cd build
+<br>
+cmake ..
+<br>
+make release
