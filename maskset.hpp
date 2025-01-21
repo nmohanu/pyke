@@ -16,24 +16,37 @@ struct MaskSet {
 	BitBoard pinmask_orth = 0;
 	BitBoard check_mask = 0;
 	BitBoard unpinned = 0;
+	BitBoard king_cmt;
 
 	uint8_t checkers = 0;
 
 	inline uint8_t get_check_cnt() { return checkers; }
+
+	inline void reset() {
+		pinmask_dg = 0;
+		pinmask_orth = 0;
+		check_mask = 0;
+		checkers = 0;
+	}
 };
 
 // Create all the needed masks for the current position.
 template <bool white>
 void create_masks(Board& b, Square king_square, MaskSet& ret) {
-	ret.pinmask_dg = 0;
-	ret.pinmask_orth = 0;
-	ret.check_mask = 0;
-	ret.checkers = 0;
+	ret.reset();
 	ret.can_move_to = ~b.get_player_occ<white>();
 
-	BitBoard k_checkers = piece_move::get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
-	BitBoard p_checkers =
-		piece_move::get_pawn_diags<white>(square_to_mask(king_square)) & b.get_piece_board<!white, PAWN>();
+	BitBoard opp_board = b.get_player_occ<!white>();
+	BitBoard own_board = b.get_player_occ<white>();
+	BitBoard eq = b.get_piece_board<!white, QUEEN>();
+	BitBoard eb = b.get_piece_board<!white, BISHOP>();
+	BitBoard er = b.get_piece_board<!white, ROOK>();
+	BitBoard diag_pinners = get_bishop_move(king_square, opp_board) & (eb | eq);
+	BitBoard orth_pinners = get_rook_move(king_square, opp_board) & (er | eq);
+	BitBoard k_checkers = get_knight_move(king_square) & b.get_piece_board<!white, KNIGHT>();
+	BitBoard p_checkers = get_pawn_diags<white>(square_to_mask(king_square)) & b.get_piece_board<!white, PAWN>();
+	BitBoard king_cnmt = 0;
+	ret.king_cmt = get_king_move(king_square) & ret.can_move_to;
 
 	if (k_checkers) {
 		ret.check_mask |= k_checkers;
@@ -42,14 +55,6 @@ void create_masks(Board& b, Square king_square, MaskSet& ret) {
 		ret.check_mask |= p_checkers;
 		ret.checkers++;
 	}
-
-	BitBoard opp_board = b.get_player_occ<!white>();
-	BitBoard own_board = b.get_player_occ<white>();
-	BitBoard eq = b.get_piece_board<!white, QUEEN>();
-	BitBoard eb = b.get_piece_board<!white, BISHOP>();
-	BitBoard er = b.get_piece_board<!white, ROOK>();
-	BitBoard diag_pinners = piece_move::get_bishop_move(king_square, opp_board) & (eb | eq);
-	BitBoard orth_pinners = piece_move::get_rook_move(king_square, opp_board) & (er | eq);
 
 	auto process_pinners = [&](BitBoard& pinboard, BitBoard& goal_mask) {
 		while (pinboard) {

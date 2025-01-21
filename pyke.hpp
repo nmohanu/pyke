@@ -176,7 +176,7 @@ static inline uint64_t generate_castle_move(Position& pos) {
 // Create king moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_king_moves(BitBoard cmt, Square king_square, Position& pos) {
-	cmt &= piece_move::get_king_move(king_square);
+	cmt &= get_king_move(king_square);
 	BitBoard captures = cmt & pos.board.get_player_occ<!white>();
 	BitBoard non_captures = cmt & ~captures;
 	uint64_t ret = 0;
@@ -273,12 +273,12 @@ static inline uint64_t generate_ep_moves(Position& pos, Square ksq, uint8_t ep) 
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
 	if constexpr (dtg <= 1 && !print_move) {
-		return popcnt(piece_move::get_pawn_double<white>(source, pos.board.occ_board) & cmt);
+		return popcnt(get_pawn_double<white>(source, pos.board.occ_board) & cmt);
 	} else {
 		uint64_t ret = 0;
 		while (source) {
 			Square from = pop(source);
-			BitBoard to_board = cmt & piece_move::get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
+			BitBoard to_board = cmt & get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
 			while (to_board) {
 				Square to = pop(to_board);
 				BitBoard move = square_to_mask(from) | square_to_mask(to);
@@ -306,14 +306,14 @@ static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Positi
 
 	// Generate moves in bulk.
 	if constexpr (dtg <= 1 && !print_move) {
-		ret += popcnt(piece_move::get_pawn_forward<white>(pieces) & cmt_free);
-		ret += popcnt(piece_move::get_pawn_left<white>(can_capture_left(pieces)) & cmt_captures);
-		ret += popcnt(piece_move::get_pawn_right<white>(can_capture_right(pieces)) & cmt_captures);
+		ret += popcnt(get_pawn_forward<white>(pieces) & cmt_free);
+		ret += popcnt(get_pawn_left<white>(can_capture_left(pieces)) & cmt_captures);
+		ret += popcnt(get_pawn_right<white>(can_capture_right(pieces)) & cmt_captures);
 	} else {
 		while (pieces) {
 			Square from = pop(pieces);
-			BitBoard captures = piece_move::get_pawn_move<white, PawnMoveType::ATTACKS>(from, occ) & cmt_captures;
-			BitBoard non_captures = piece_move::get_pawn_move<white, PawnMoveType::FORWARD>(from, occ) & cmt_free;
+			BitBoard captures = get_pawn_move<white, PawnMoveType::ATTACKS>(from, occ) & cmt_captures;
+			BitBoard non_captures = get_pawn_move<white, PawnMoveType::FORWARD>(from, occ) & cmt_free;
 			ret += count_plain<white, PAWN, dtg, print_move, cr>(non_captures, from, pos);
 			ret += count_captures<white, PAWN, dtg, print_move, cr>(captures, from, pos);
 		}

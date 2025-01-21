@@ -8,7 +8,6 @@
 #ifndef PIECE_MOVES_H
 #define PIECE_MOVES_H
 
-namespace piece_move {
 // King move.
 static inline BitBoard get_king_move(const Square square) { return KING_MOVE_SQUARES[square]; }
 // Knight move logic.
@@ -26,7 +25,7 @@ constexpr static inline BitBoard get_rook_move(const Square square, const BitBoa
 
 // Queen move logic.
 static inline BitBoard get_queen_move(const Square square, const BitBoard occ) {
-	return piece_move::get_bishop_move(square, occ) | piece_move::get_rook_move(square, occ);
+	return get_bishop_move(square, occ) | get_rook_move(square, occ);
 }
 
 template <bool white>
@@ -99,17 +98,15 @@ static inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
 	}
 }
 
-}  // namespace piece_move
-
 constexpr static std::array<std::array<uint64_t, 64>, 64> create_betweens() {
 	std::array<std::array<uint64_t, 64>, 64> ret{};
 	for (int s1 = 0; s1 < 64; s1++) {
 		for (int s2 = 0; s2 < 64; s2++) {
 			if (s1 == s2) continue;
-			BitBoard rs1 = piece_move::get_rook_move(s1, square_to_mask(s2));
-			BitBoard rs2 = piece_move::get_rook_move(s2, square_to_mask(s1));
-			BitBoard ds1 = piece_move::get_bishop_move(s1, square_to_mask(s2));
-			BitBoard ds2 = piece_move::get_bishop_move(s2, square_to_mask(s1));
+			BitBoard rs1 = get_rook_move(s1, square_to_mask(s2));
+			BitBoard rs2 = get_rook_move(s2, square_to_mask(s1));
+			BitBoard ds1 = get_bishop_move(s1, square_to_mask(s2));
+			BitBoard ds2 = get_bishop_move(s2, square_to_mask(s1));
 
 			if (rs1 & square_to_mask(s2)) {
 				BitBoard orth = rs1 & rs2;
@@ -130,19 +127,19 @@ template <bool white, Piece piece>
 static inline BitBoard make_reach_board(Square square, Board& b) {
 	switch (piece) {
 	case PAWN:
-		return piece_move::get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, occb);
+		return get_pawn_move<white, PawnMoveType::NON_DOUBLE>(square, occb);
 	case KING:
-		return piece_move::get_king_move(square);
+		return get_king_move(square);
 	case ROOK:
 	case QUEEN_ORTH:
-		return piece_move::get_rook_move(square, occb);
+		return get_rook_move(square, occb);
 	case BISHOP:
 	case QUEEN_DIAG:
-		return piece_move::get_bishop_move(square, occb);
+		return get_bishop_move(square, occb);
 	case KNIGHT:
-		return piece_move::get_knight_move(square);
+		return get_knight_move(square);
 	case QUEEN:
-		return piece_move::get_queen_move(square, occb);
+		return get_queen_move(square, occb);
 	}
 }
 

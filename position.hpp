@@ -22,7 +22,6 @@ struct Position {
 	// Returns whether a square is under attack.
 	template <bool white>
 	inline bool is_attacked(Square square) {
-		using namespace piece_move;
 		return (get_pawn_move<white, PawnMoveType::ATTACKS>(square, board.occ_board)
 				& board.get_piece_board<!white, PAWN>())
 			|| (get_knight_move(square) & board.get_piece_board<!white, KNIGHT>())
