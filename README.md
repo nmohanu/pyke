@@ -7,6 +7,7 @@ TODO:
 <br>
 - Promotion moves.
 - Further optimizations.
+- Make moves and specifify perft depth on runtime.
 
 # How to compile
 From project root: 
@@ -18,3 +19,9 @@ cd build
 cmake ..
 <br>
 make release
+<br>
+<br>
+There should now be an executable in the build folder. 
+
+# How to use
+Currently, the program is hard coded from startposition on perft 7. You can change this in main.cpp. I'm working on features to change this in runtime.
