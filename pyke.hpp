@@ -352,29 +352,38 @@ static inline uint64_t generate_pawn(Position& pos, MaskSet& msk) {
  *	SLIDERS
  */
 
-template <bool white, int dtg, bool print_move, CastlingRights cr, Piece p>
+template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
-	BitBoard src = pos.board.get_piece_board<white, p>();
-	BitBoard unpinned = src & msk.unpinned;
-	BitBoard pinned, pin_cmt;
-
-	if constexpr (p == QUEEN_DIAG || p == BISHOP) {
-		pinned = src & msk.pinmask_dg & ~msk.pinmask_orth;
-		pin_cmt = msk.can_move_to & msk.pinmask_dg;
-	} else {
-		pinned = src & msk.pinmask_orth & ~msk.pinmask_dg;
-		pin_cmt = msk.can_move_to & msk.pinmask_orth;
-	}
+	BitBoard bishops = pos.board.get_piece_board<white, BISHOP>();
+	BitBoard rooks = pos.board.get_piece_board<white, ROOK>();
+	BitBoard queens = pos.board.get_piece_board<white, QUEEN>();
+	BitBoard unp_b = bishops & msk.unpinned;
+	BitBoard unp_r = rooks & msk.unpinned;
+	BitBoard unp_q = queens & msk.unpinned;
+	BitBoard pin_cmt_diag = msk.can_move_to & msk.pinmask_dg;
+	BitBoard pin_cmt_orth = msk.can_move_to & msk.pinmask_orth;
+	BitBoard dg_not_orth = msk.pinmask_dg & ~msk.pinmask_orth;
+	BitBoard orth_not_dg = msk.pinmask_orth & ~msk.pinmask_dg;
+	BitBoard pin_b = bishops & dg_not_orth;
+	BitBoard pin_q_diag = queens & dg_not_orth;
+	BitBoard pin_r = rooks & orth_not_dg;
+	BitBoard pin_q_orth = queens & orth_not_dg;
 
 	// Pinned + unpinned.
-	return generate_moves<white, p, dtg, print_move, cr>(pin_cmt, pinned, pos)
-		+ generate_moves<white, p, dtg, print_move, cr>(msk.can_move_to, unpinned, pos);
+	return generate_moves<white, BISHOP, dtg, print_move, cr>(pin_cmt_diag, pin_b, pos)
+		+ generate_moves<white, BISHOP, dtg, print_move, cr>(msk.can_move_to, unp_b, pos)
+		+ generate_moves<white, QUEEN_DIAG, dtg, print_move, cr>(pin_cmt_diag, pin_q_diag, pos)
+		+ generate_moves<white, QUEEN, dtg, print_move, cr>(msk.can_move_to, unp_q, pos)
+		+ generate_moves<white, QUEEN_ORTH, dtg, print_move, cr>(pin_cmt_orth, pin_q_orth, pos)
+		+ generate_moves<white, ROOK, dtg, print_move, cr>(pin_cmt_orth, pin_r, pos)
+		+ generate_moves<white, ROOK, dtg, print_move, cr>(msk.can_move_to, unp_r, pos);
 }
 
 /*
  *	KNIGHTS
  */
 
+// Count knight moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_knight(Position& pos, MaskSet& msk) {
 	BitBoard cmf = pos.board.get_piece_board<white, KNIGHT>() & msk.unpinned;
@@ -385,6 +394,7 @@ static inline uint64_t generate_knight(Position& pos, MaskSet& msk) {
  *	MAIN
  */
 
+// Main counting function.
 template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep = false>
 uint64_t count_moves(Position& pos) {
 	if constexpr (dtg < 1)
@@ -412,10 +422,7 @@ uint64_t count_moves(Position& pos) {
 		}
 
 		// Generate moves.
-		ret += generate_sliders<white, dtg, print_move, cr, BISHOP>(pos, msk);
-		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_DIAG>(pos, msk);
-		ret += generate_sliders<white, dtg, print_move, cr, ROOK>(pos, msk);
-		ret += generate_sliders<white, dtg, print_move, cr, QUEEN_ORTH>(pos, msk);
+		ret += generate_sliders<white, dtg, print_move, cr>(pos, msk);
 		ret += generate_pawn<white, dtg, print_move, cr>(pos, msk);
 		ret += generate_knight<white, dtg, print_move, cr>(pos, msk);
 		if constexpr (ep) ret += generate_ep_moves<white, dtg, print_move, cr>(pos, ep_flag, msk);
