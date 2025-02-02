@@ -20,120 +20,50 @@ template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep>
 NodeCount count_moves(Position& pos);
 
 /*
- *	ROOK
- */
-
-// Count rook moves.
-template <bool white, Piece p, bool capture, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_rook_moves(BitBoard cmt, BitBoard from, Position& pos) {
-	if (!cmt) return 0;
-	NodeCount ret = 0;
-	bool rm_ks = lbit(from) == rook_start_squares[!white];
-	bool rm_qs = lbit(from) == rook_start_squares[!white + 1];
-
-	while (cmt) {
-		NodeCount loc_ret = 0;
-		BitBoard to = popextr(cmt);
-		BitBoard move = from | to;
-		if constexpr (capture) {
-			// Capture moves.
-			const Piece captured = pos.board.get_piece<!white>(to);
-
-			capture_move_wrapper<white, p>(pos.board, captured, move, to);
-			loc_ret += rm_ks ? count_moves<!white, dtg - 1, false, rm_cr<white, true>(cr)>(pos)
-				: rm_qs		 ? count_moves<!white, dtg - 1, false, rm_cr<white, false>(cr)>(pos)
-							 : count_moves<!white, dtg - 1, false, cr>(pos);
-			unmake_capture_wrapper<white, p>(pos.board, captured, move, to);
-		} else {
-			plain_move<white, p>(pos.board, move);
-			loc_ret += rm_ks ? count_moves<!white, dtg - 1, false, rm_cr<white, true>(cr)>(pos)
-				: rm_qs		 ? count_moves<!white, dtg - 1, false, rm_cr<white, false>(cr)>(pos)
-							 : count_moves<!white, dtg - 1, false, cr>(pos);
-			unmake_plain_move<white, p>(pos.board, move);
-		}
-		if constexpr (print_move) print_movecnt(lbit(from), lbit(to), loc_ret);
-		ret += loc_ret;
-	}
-	return ret;
-}
-
-/*
  *	GENERAL
  */
 
-template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount count_captures(BitBoard cmt, BitBoard from, Position& pos) {
-	if (!cmt) return 0;
-	if constexpr (p == ROOK) {
-		return generate_rook_moves<white, ROOK, true, dtg, print_move, cr>(cmt, from, pos);
-	} else {
-		NodeCount ret = 0;
-		while (cmt) {
-			NodeCount loc_ret = 0;
-			BitBoard to = popextr(cmt);
-			// Capture moves.
-			const Piece captured = pos.board.get_piece<!white>(to);
-			BitBoard move = from | to;
-
+// Count plain, non capture moves.
+template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr, bool take>
+inline NodeCount process_move(BitBoard cmt, BitBoard from, Position& pos) {
+	NodeCount acc = 0;
+	while (cmt) {
+		const BitBoard to = popextr(cmt), move = from | to;
+		Piece captured;
+		// Do move.
+		if constexpr (take) {
+			captured = pos.board.get_piece<!white>(to);
 			capture_move_wrapper<white, p>(pos.board, captured, move, to);
-			if (captured == ROOK) {
-				constexpr int rook_sq_index = 2 * white;
-				const bool rm_ks = to == rook_start_squares[rook_sq_index];
-				const bool rm_qs = to == rook_start_squares[rook_sq_index + 1];
-				loc_ret += rm_ks ? count_moves<!white, dtg - 1, false, rm_cr<!white, true>(cr)>(pos)
-					: rm_qs		 ? count_moves<!white, dtg - 1, false, rm_cr<!white, false>(cr)>(pos)
-								 : count_moves<!white, dtg - 1, false, cr>(pos);
-			} else {
-				loc_ret += count_moves<!white, dtg - 1, false, cr>(pos);
-			}
-			unmake_capture_wrapper<white, p>(pos.board, captured, move, to);
-
-			if constexpr (print_move) print_movecnt(lbit(from), lbit(to), loc_ret);
-			ret += loc_ret;
-		}
-		return ret;
+		} else plain_move<white, p>(pos.board, move);
+		// Count.
+		const NodeCount loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
+		// Undo move.
+		if constexpr (take) unmake_capture_wrapper<white, p>(pos.board, captured, move, to);
+		else unmake_plain_move<white, p>(pos.board, move);
+		// Output move and count if needed.
+		if constexpr (print_move) print_movecnt(lbit(from), lbit(to), loc_ret);
+		acc += loc_ret;
 	}
-}
-
-template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount count_plain(BitBoard cmt, BitBoard from, Position& pos) {
-	if (!cmt) return 0;
-	if constexpr (p == ROOK) {
-		return generate_rook_moves<white, ROOK, false, dtg, print_move, cr>(cmt, from, pos);
-	} else {
-		NodeCount acc = 0;
-		while (cmt) {
-			BitBoard to = popextr(cmt), move = from | to;
-
-			plain_move<white, p>(pos.board, move);
-			NodeCount loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
-			unmake_plain_move<white, p>(pos.board, move);
-
-			if constexpr (print_move) print_movecnt(lbit(from), lbit(to), loc_ret);
-			acc += loc_ret;
-		}
-		return acc;
-	}
+	return acc;
 }
 
 // Splits the reachable squares into non-captures and captures and calls the appropriate function.
 template <bool white, Piece p, int dtg, bool print_move, CastlingRights cr, MoveType mt = p>
-static inline NodeCount generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
+inline NodeCount generate_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
 	NodeCount ret = 0;
 	// For all instances of given piece.
 	while (pieces) {
-		BitBoard from = popextr(pieces);
+		const BitBoard from = popextr(pieces);
 		if constexpr (dtg <= 1 && !print_move) {
 			ret += popcnt(cmt & make_reach_board<white, p>(lbit(from), pos.board));
 		} else {
-			BitBoard piece_moves_to = cmt & make_reach_board<white, mt>(lbit(from), pos.board);
-			BitBoard captures = piece_moves_to & pos.board.occ_board;
-			BitBoard non_captures = piece_moves_to & ~captures;
+			const BitBoard piece_cmt = cmt & make_reach_board<white, mt>(lbit(from), pos.board);
+			const BitBoard captures = piece_cmt & pos.board.occ_board, non_captures = piece_cmt & ~captures;
 
 			// Non-captures + captured.
-			ret += count_plain<white, p, dtg, print_move, cr>(non_captures, from, pos);
-			ret += count_captures<white, p, dtg, print_move, cr>(captures, from, pos);
+			ret += process_move<white, p, dtg, print_move, cr, false>(non_captures, from, pos);
+			ret += process_move<white, p, dtg, print_move, cr, true>(captures, from, pos);
 		}
 	}
 	return ret;
@@ -145,7 +75,7 @@ static inline NodeCount generate_moves(BitBoard cmt, BitBoard pieces, Position& 
 
 // Create the castling move for given player and direction.
 template <bool white, bool kingside, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_castle_move(Position& pos) {
+inline NodeCount generate_castle_move(Position& pos) {
 	Board& b = pos.board;
 	constexpr Square to = white ? (kingside ? 62 : 58) : (kingside ? 6 : 2);
 	constexpr Square middle_square = white ? (kingside ? 61 : 59) : (kingside ? 5 : 3);
@@ -171,7 +101,7 @@ static inline NodeCount generate_castle_move(Position& pos) {
 
 // Create king moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_king_moves(BitBoard cmt, Position& pos) {
+inline NodeCount generate_king_moves(BitBoard cmt, Position& pos) {
 	BitBoard ksq_mask = pos.board.get_piece_board<white, KING>();
 	cmt &= get_king_move(lbit(ksq_mask));
 	BitBoard captures = cmt & pos.board.get_player_occ<!white>();
@@ -213,38 +143,14 @@ static inline NodeCount generate_king_moves(BitBoard cmt, Position& pos) {
 
 // Generate all possible promotion moves.
 template <bool white, int dtg, bool print_move>
-static inline NodeCount generate_promotions(Position& pos, BitBoard cmt, BitBoard source) {
+inline NodeCount generate_promotions(Position& pos, BitBoard cmt, BitBoard source) {
+	// TODO...
 	return 0;
-	/*all         Board::is_equal(Board const&
-	const auto generate_promo_pieces = [&](const Piece piece, const Piece captured, Square from, Square to) {
-		promo_move<white, piece, captured>(from, to, pos);
-		int count = 1 + count_moves<!white, dtg - 1>(pos);
-		unmake_promo_move<white, piece, captured>(from, to, pos);
-		return count;
-	};
-	int ret = 0;
-	while (source) {
-		Square from = pop(source);
-		while (cmt) {
-			Square to = pop(cmt);
-			if constexpr (dtg <= 1) {
-				return 4;
-			} else {
-				const Piece at_to = pos.board.get_piece<white>(to);
-				ret += generate_promo_pieces(ROOK, at_to, from, to);
-				ret += generate_promo_pieces(KNIGHT, at_to, from, to);
-				ret += generate_promo_pieces(BISHOP, at_to, from, to);
-				ret += generate_promo_pieces(QUEEN, at_to, from, to);
-			}
-		}
-	}
-	return ret;
-*/
 }
 
 // Make ep move and ocunt. Offset is whether ep comes from left or right.
 template <bool white, int offset, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount make_en_passant(Position& pos, uint8_t ep, MaskSet& msk) {
+inline NodeCount make_en_passant(Position& pos, uint8_t ep, MaskSet& msk) {
 	NodeCount loc_ret;
 	sq_pair epsq = get_ep_squares<white, offset>(ep);
 	BitBoard move = square_to_mask(epsq.first) | square_to_mask(epsq.second);
@@ -253,8 +159,7 @@ static inline NodeCount make_en_passant(Position& pos, uint8_t ep, MaskSet& msk)
 
 	ep_move<white>(pos.board, move, capture_sq);
 
-	if (square_to_mask(epsq.first) & msk.npin)
-		loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
+	if (square_to_mask(epsq.first) & msk.npin) loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
 	else
 		loc_ret = !pos.is_attacked<white>(lbit(pos.board.get_piece_board<white, KING>()))
 			? count_moves<!white, dtg - 1, false, cr>(pos)
@@ -268,14 +173,14 @@ static inline NodeCount make_en_passant(Position& pos, uint8_t ep, MaskSet& msk)
 
 // Count nodes following from ep moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_ep_moves(Position& pos, uint8_t ep, MaskSet& msk) {
+inline NodeCount generate_ep_moves(Position& pos, uint8_t ep, MaskSet& msk) {
 	return (ep & 0x80 ? make_en_passant<white, -1, dtg, print_move, cr>(pos, ep, msk) : 0)
 		+ (ep & 0x40 ? make_en_passant<white, 1, dtg, print_move, cr>(pos, ep, msk) : 0);
 }
 
 // Pawn double pushes.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
+inline NodeCount generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
 	if constexpr (dtg <= 1 && !print_move) {
 		return popcnt(get_pawn_double<white>(source, pos.board.occ_board) & cmt);
 	} else {
@@ -300,7 +205,7 @@ static inline NodeCount generate_pawn_double(BitBoard cmt, Position& pos, BitBoa
 
 // Concrete generator for pawn moves. Creates double pushes, pushes and captures, in bulk if possible.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
+inline NodeCount generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
 	// Isolate free and occupied squares.
 	BitBoard occ = pos.board.occ_board, cmt_free = cmt & ~occ, cmt_captures = cmt & occ;
@@ -317,19 +222,18 @@ static inline NodeCount generate_pawn_moves(BitBoard cmt, BitBoard pieces, Posit
 			BitBoard from = popextr(pieces);
 			BitBoard captures = get_pawn_move<white, PawnMoveType::ATTACKS>(from, occ) & cmt_captures;
 			BitBoard non_captures = get_pawn_move<white, PawnMoveType::FORWARD>(from, occ) & cmt_free;
-			acc += count_plain<white, PAWN, dtg, print_move, cr>(non_captures, from, pos);
-			acc += count_captures<white, PAWN, dtg, print_move, cr>(captures, from, pos);
+			acc += process_move<white, PAWN, dtg, print_move, cr, false>(non_captures, from, pos);
+			acc += process_move<white, PAWN, dtg, print_move, cr, true>(captures, from, pos);
 		}
 	}
 	return acc;
 }
 
-// Wrapper.
+// Wrapper. Split pinned and unpinned pawns for non-promo pawns.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_pawn(Position& pos, MaskSet& msk) {
+inline NodeCount generate_pawn(Position& pos, MaskSet& msk) {
 	// Extract pawns on promo rank, they are handled seperately.
 	BitBoard cmf = pos.piecebrd<white, PAWN>(), on_promo = cmf & promo_rank(white), not_promo = cmf & ~on_promo;
-	// Count pinned + unpinned.
 	return generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt, not_promo & msk.npin, pos)
 		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt & ~msk.npin, not_promo & ~msk.npin, pos);
 }
@@ -340,7 +244,7 @@ static inline NodeCount generate_pawn(Position& pos, MaskSet& msk) {
 
 // Slider moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_sliders(Position& pos, MaskSet& msk) {
+inline NodeCount generate_sliders(Position& pos, MaskSet& msk) {
 	// Sources.
 	BitBoard b = pos.piecebrd<white, BISHOP>(), r = pos.piecebrd<white, ROOK>(), q = pos.piecebrd<white, QUEEN>();
 	// Unpinned.
@@ -368,7 +272,7 @@ static inline NodeCount generate_sliders(Position& pos, MaskSet& msk) {
 
 // Count knight moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline NodeCount generate_knight(Position& pos, MaskSet& msk) {
+inline NodeCount generate_knight(Position& pos, MaskSet& msk) {
 	return generate_moves<white, KNIGHT, dtg, print_move, cr>(msk.cmt, pos.piecebrd<white, KNIGHT>() & msk.npin, pos);
 }
 
@@ -379,8 +283,7 @@ static inline NodeCount generate_knight(Position& pos, MaskSet& msk) {
 // Main counting function.
 template <bool white, int dtg, bool print_move, CastlingRights cr, bool ep = false>
 NodeCount count_moves(Position& pos) {
-	if constexpr (dtg < 1)
-		return 1;
+	if constexpr (dtg < 1) return 1;
 	else {
 		uint8_t ep_flag = ep ? pos.ep_flag : 0;
 

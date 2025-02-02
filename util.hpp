@@ -40,7 +40,7 @@ inline uint8_t pop(uint64_t& b) {
 }
 
 inline BitBoard popextr(uint64_t& b) {
-	BitBoard index = square_to_mask(lbit(b));
+	BitBoard index = 1ULL << __builtin_ctzll(b);
 	b ^= index;
 	return index;
 }
