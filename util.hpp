@@ -39,6 +39,12 @@ inline uint8_t pop(uint64_t& b) {
 	return index;
 }
 
+inline BitBoard popextr(uint64_t& b) {
+	BitBoard index = 1ULL << __builtin_ctzll(b);
+	b ^= index;
+	return index;
+}
+
 static inline void print_movecnt(Square start_square, Square end_square, uint64_t cnt) {
 	if (cnt)
 		std::cout << make_chess_notation(start_square) << make_chess_notation(end_square) << ": " << std::to_string(cnt)

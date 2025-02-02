@@ -128,13 +128,13 @@ static void unmake_promo_move(Square from, Square to, Position& pos) {
 
 // Do pawn double forward move.
 template <bool white>
-static bool pawn_double(Board& b, BitBoard move, Square to, uint8_t& ep_flag) {
+static bool pawn_double(Board& b, BitBoard move, BitBoard to, uint8_t& ep_flag) {
 	move_piece<white, PAWN>(b, move);
 
 	// pawn moved two forward, update en passant status.
-	bool left_is_opp_pawn = b.get_piece_board<!white, PAWN>() & square_to_mask(to - 1);
-	bool right_is_opp_pawn = b.get_piece_board<!white, PAWN>() & square_to_mask(to + 1);
-	File file = to % 8;
+	bool left_is_opp_pawn = b.get_piece_board<!white, PAWN>() & (to << 1);
+	bool right_is_opp_pawn = b.get_piece_board<!white, PAWN>() & (to >> 1);
+	File file = lbit(to) % 8;
 
 	// Edge of board cases.
 	bool edge_left = file == 0;

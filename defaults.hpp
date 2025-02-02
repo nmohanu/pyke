@@ -16,6 +16,7 @@ typedef uint8_t File;
 typedef std::pair<Square, Square> sq_pair;
 typedef uint8_t CastlingRights;
 typedef uint8_t MoveType;
+typedef uint64_t NodeCount;
 
 // Default bitboards.
 constexpr uint64_t INIT_ROOK_SQUARES = 0b1000000100000000000000000000000000000000000000000000000010000001ULL;

@@ -9,13 +9,13 @@
 
 struct MaskSet {
 	// squares that are empty or enemy;
-	BitBoard can_move_to;
+	BitBoard cmt;
 
 	// Pinmask.
 	BitBoard pinmask_dg = 0;
 	BitBoard pinmask_orth = 0;
 	BitBoard check_mask = 0;
-	BitBoard unpinned = 0;
+	BitBoard nopin = 0;
 
 	uint8_t checkers = 0;
 
@@ -33,7 +33,7 @@ struct MaskSet {
 template <bool white>
 MaskSet& create_masks(Board& b, Square king_square, MaskSet& ret) {
 	ret.reset();
-	ret.can_move_to = ~b.get_player_occ<white>();
+	ret.cmt = ~b.get_player_occ<white>();
 
 	BitBoard opp_board = b.get_player_occ<!white>();
 	BitBoard own_board = b.get_player_occ<white>();
@@ -72,7 +72,7 @@ MaskSet& create_masks(Board& b, Square king_square, MaskSet& ret) {
 
 	process_pinners(diag_pinners, ret.pinmask_dg);
 	process_pinners(orth_pinners, ret.pinmask_orth);
-	ret.unpinned = ~(ret.pinmask_dg | ret.pinmask_orth);
+	ret.nopin = ~(ret.pinmask_dg | ret.pinmask_orth);
 
 	return ret;
 }

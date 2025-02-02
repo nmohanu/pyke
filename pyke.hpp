@@ -264,7 +264,7 @@ static inline uint64_t make_en_passant(Position& pos, uint8_t ep, MaskSet& msk) 
 
 	ep_move<white>(pos.board, move, capture_sq);
 
-	if (square_to_mask(epsq.first) & msk.unpinned)
+	if (square_to_mask(epsq.first) & msk.nopin)
 		loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
 	else
 		loc_ret = !pos.is_attacked<white>(pos.get_ksq<white>()) ? count_moves<!white, dtg - 1, false, cr>(pos) : 0;
@@ -284,22 +284,22 @@ static inline uint64_t generate_ep_moves(Position& pos, uint8_t ep, MaskSet& msk
 
 // Pawn double pushes.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
+static inline NodeCount generate_pawn_double(BitBoard cmt, Position& pos, BitBoard source) {
 	if constexpr (dtg <= 1 && !print_move) {
 		return popcnt(get_pawn_double<white>(source, pos.board.occ_board) & cmt);
 	} else {
-		uint64_t ret = 0;
+		NodeCount ret = 0;
 		while (source) {
-			Square from = pop(source);
-			BitBoard to_board = cmt & get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
+			BitBoard from = popextr(source);
+			BitBoard to_board = cmt & get_pawn_double<white>(from, pos.board.occ_board);
 			while (to_board) {
-				Square to = pop(to_board);
-				BitBoard move = square_to_mask(from) | square_to_mask(to);
+				BitBoard to = popextr(to_board);
+				BitBoard move = from | to;
 				bool ep = pawn_double<white>(pos.board, move, to, pos.ep_flag);
-				uint64_t loc_ret = ep ? count_moves<!white, dtg - 1, false, cr, true>(pos)
-									  : count_moves<!white, dtg - 1, false, cr, false>(pos);
+				NodeCount loc_ret = ep ? count_moves<!white, dtg - 1, false, cr, true>(pos)
+									   : count_moves<!white, dtg - 1, false, cr, false>(pos);
 				unmake_pawn_double<white>(pos.board, move);
-				if constexpr (print_move) print_movecnt(from, to, loc_ret);
+				if constexpr (print_move) print_movecnt(lbit(from), lbit(to), loc_ret);
 				ret += loc_ret;
 			}
 		}
@@ -340,12 +340,12 @@ static inline uint64_t generate_pawn(Position& pos, MaskSet& msk) {
 	BitBoard can_move_from = pos.board.get_piece_board<white, PAWN>();
 	BitBoard pawns_on_promo = can_move_from & (white ? promotion_from_w : promotion_from_b);
 	can_move_from &= ~pawns_on_promo;
-	BitBoard pinned = can_move_from & ~msk.unpinned;
-	BitBoard unpinned = can_move_from & msk.unpinned;
+	BitBoard pinned = can_move_from & ~msk.nopin;
+	BitBoard unpinned = can_move_from & msk.nopin;
 
 	// Unpinned + pinned.
-	return generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to, unpinned, pos)
-		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.can_move_to & ~msk.unpinned, pinned, pos);
+	return generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt, unpinned, pos)
+		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt & ~msk.nopin, pinned, pos);
 }
 
 /*
@@ -357,11 +357,11 @@ static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
 	BitBoard bishops = pos.board.get_piece_board<white, BISHOP>();
 	BitBoard rooks = pos.board.get_piece_board<white, ROOK>();
 	BitBoard queens = pos.board.get_piece_board<white, QUEEN>();
-	BitBoard unp_b = bishops & msk.unpinned;
-	BitBoard unp_r = rooks & msk.unpinned;
-	BitBoard unp_q = queens & msk.unpinned;
-	BitBoard pin_cmt_diag = msk.can_move_to & msk.pinmask_dg;
-	BitBoard pin_cmt_orth = msk.can_move_to & msk.pinmask_orth;
+	BitBoard unp_b = bishops & msk.nopin;
+	BitBoard unp_r = rooks & msk.nopin;
+	BitBoard unp_q = queens & msk.nopin;
+	BitBoard pin_cmt_diag = msk.cmt & msk.pinmask_dg;
+	BitBoard pin_cmt_orth = msk.cmt & msk.pinmask_orth;
 	BitBoard dg_not_orth = msk.pinmask_dg & ~msk.pinmask_orth;
 	BitBoard orth_not_dg = msk.pinmask_orth & ~msk.pinmask_dg;
 	BitBoard pin_b = bishops & dg_not_orth;
@@ -371,12 +371,12 @@ static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
 
 	// Pinned + unpinned.
 	return generate_moves<white, BISHOP, dtg, print_move, cr>(pin_cmt_diag, pin_b, pos)
-		+ generate_moves<white, BISHOP, dtg, print_move, cr>(msk.can_move_to, unp_b, pos)
+		+ generate_moves<white, BISHOP, dtg, print_move, cr>(msk.cmt, unp_b, pos)
 		+ generate_moves<white, QUEEN_DIAG, dtg, print_move, cr>(pin_cmt_diag, pin_q_diag, pos)
-		+ generate_moves<white, QUEEN, dtg, print_move, cr>(msk.can_move_to, unp_q, pos)
+		+ generate_moves<white, QUEEN, dtg, print_move, cr>(msk.cmt, unp_q, pos)
 		+ generate_moves<white, QUEEN_ORTH, dtg, print_move, cr>(pin_cmt_orth, pin_q_orth, pos)
 		+ generate_moves<white, ROOK, dtg, print_move, cr>(pin_cmt_orth, pin_r, pos)
-		+ generate_moves<white, ROOK, dtg, print_move, cr>(msk.can_move_to, unp_r, pos);
+		+ generate_moves<white, ROOK, dtg, print_move, cr>(msk.cmt, unp_r, pos);
 }
 
 /*
@@ -385,9 +385,8 @@ static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
 
 // Count knight moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_knight(Position& pos, MaskSet& msk) {
-	BitBoard cmf = pos.board.get_piece_board<white, KNIGHT>() & msk.unpinned;
-	return generate_moves<white, KNIGHT, dtg, print_move, cr>(msk.can_move_to, cmf, pos);
+static inline NodeCount generate_knight(Position& pos, MaskSet& msk) {
+	return generate_moves<white, KNIGHT, dtg, print_move, cr>(msk.cmt, pos.piece_brd<white, KNIGHT>() & msk.nopin, pos);
 }
 
 /*
@@ -406,7 +405,7 @@ uint64_t count_moves(Position& pos) {
 		MaskSet& msk = create_masks<white>(pos.board, pos.get_ksq<white>(), pos.masks.go_next());
 
 		// King moves can always be generated.
-		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.can_move_to, pos);
+		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.cmt, pos);
 
 		// If double check, only king can move. Else, limit the target squares to the checkmask and skip castling.
 		switch (msk.checkers) {
@@ -415,7 +414,7 @@ uint64_t count_moves(Position& pos) {
 			ret += generate_castle_move<white, false, dtg, print_move, cr>(pos);
 			break;
 		case 1:
-			msk.can_move_to &= msk.check_mask;
+			msk.cmt &= msk.check_mask;
 			break;
 		default:
 			return ret;

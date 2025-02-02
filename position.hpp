@@ -39,6 +39,11 @@ struct Position {
 		}
 	}
 
+	template <bool white, Piece p>
+	inline BitBoard piece_brd() {
+		return board.get_piece_board<white, p>();
+	}
+
 	// Returns whether a square is under attack.
 	template <bool white>
 	inline bool is_attacked(Square square) {
