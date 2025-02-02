@@ -166,10 +166,8 @@ static inline uint64_t generate_castle_move(Position& pos) {
 	} else {
 		constexpr uint8_t code = white ? (kingside ? 0 : 1) : (kingside ? 2 : 3);
 		castle_move<white, code>(pos.board);
-		pos.set_ksq<white>(to);
 		uint64_t ret = count_moves<!white, dtg - 1, false, white ? rm_cr_w(cr) : rm_cr_b(cr)>(pos);
 		unmake_castle_move<white, code>(pos.board);
-		pos.set_ksq<white>(ksq);
 		if constexpr (print_move) print_movecnt(ksq, to, ret);
 		return ret;
 	}
@@ -178,9 +176,8 @@ static inline uint64_t generate_castle_move(Position& pos) {
 // Create king moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_king_moves(BitBoard cmt, Position& pos) {
-	Square ksq = pos.get_ksq<white>();
 	BitBoard ksq_mask = pos.board.get_piece_board<white, KING>();
-	cmt &= get_king_move(ksq);
+	cmt &= get_king_move(lbit(ksq_mask));
 	BitBoard captures = cmt & pos.board.get_player_occ<!white>();
 	BitBoard non_captures = cmt & ~captures;
 	uint64_t ret = 0;
@@ -190,7 +187,6 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Position& pos) {
 		BitBoard move = ksq_mask | to;
 
 		plain_move<white, KING>(pos.board, move);
-		pos.set_ksq<white>(lbit(to));
 		if (!pos.is_attacked<white>(lbit(to))) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_plain_move<white, KING>(pos.board, move);
 
@@ -205,15 +201,12 @@ static inline uint64_t generate_king_moves(BitBoard cmt, Position& pos) {
 		BitBoard move = ksq_mask | to;
 
 		capture_move_wrapper<white, KING>(pos.board, captured, move, to);
-		pos.set_ksq<white>(lbit(to));
 		if (!pos.is_attacked<white>(lbit(to))) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_capture_wrapper<white, KING>(pos.board, captured, move, to);
 
 		if constexpr (print_move) print_movecnt(lbit(ksq_mask), lbit(to), loc_ret);
 		ret += loc_ret;
 	}
-
-	pos.set_ksq<white>(ksq);
 
 	return ret;
 }
@@ -267,7 +260,9 @@ static inline uint64_t make_en_passant(Position& pos, uint8_t ep, MaskSet& msk) 
 	if (square_to_mask(epsq.first) & msk.unpinned)
 		loc_ret = count_moves<!white, dtg - 1, false, cr>(pos);
 	else
-		loc_ret = !pos.is_attacked<white>(pos.get_ksq<white>()) ? count_moves<!white, dtg - 1, false, cr>(pos) : 0;
+		loc_ret = !pos.is_attacked<white>(lbit(pos.board.get_piece_board<white, KING>()))
+			? count_moves<!white, dtg - 1, false, cr>(pos)
+			: 0;
 
 	unmake_ep_move<white>(pos.board, move, capture_sq);
 
@@ -403,7 +398,7 @@ uint64_t count_moves(Position& pos) {
 		uint8_t ep_flag = ep ? pos.ep_flag : 0;
 
 		// Make masks.
-		MaskSet& msk = create_masks<white>(pos.board, pos.get_ksq<white>(), pos.masks.go_next());
+		MaskSet& msk = create_masks<white>(pos.board, pos.masks.go_next());
 
 		// King moves can always be generated.
 		uint64_t ret = generate_king_moves<white, dtg, print_move, cr>(msk.can_move_to, pos);

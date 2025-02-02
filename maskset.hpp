@@ -31,9 +31,10 @@ struct MaskSet {
 
 // Create all the needed masks for the current position.
 template <bool white>
-MaskSet& create_masks(Board& b, Square king_square, MaskSet& ret) {
+MaskSet& create_masks(Board& b, MaskSet& ret) {
 	ret.reset();
 	ret.can_move_to = ~b.get_player_occ<white>();
+	Square king_square = lbit(b.get_piece_board<white, KING>());
 
 	BitBoard opp_board = b.get_player_occ<!white>();
 	BitBoard own_board = b.get_player_occ<white>();
