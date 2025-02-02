@@ -136,13 +136,9 @@ static bool pawn_double(Board& b, BitBoard move, BitBoard to, uint8_t& ep_flag) 
 	bool right_is_opp_pawn = b.get_piece_board<!white, PAWN>() & (to >> 1);
 	File file = lbit(to) % 8;
 
-	// Edge of board cases.
-	bool edge_left = file == 0;
-	bool edge_right = file == 7;
-
 	// Check if en passant is possible.
-	bool possible_left = left_is_opp_pawn && !edge_left;
-	bool possible_right = right_is_opp_pawn && !edge_right;
+	bool possible_left = left_is_opp_pawn && !(file == 0);
+	bool possible_right = right_is_opp_pawn && !(file == 7);
 
 	// Update flag.
 	ep_flag = 0;
