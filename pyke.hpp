@@ -179,37 +179,37 @@ static inline uint64_t generate_castle_move(Position& pos) {
 template <bool white, int dtg, bool print_move, CastlingRights cr>
 static inline uint64_t generate_king_moves(BitBoard cmt, Position& pos) {
 	Square ksq = pos.get_ksq<white>();
+	BitBoard ksq_mask = pos.board.get_piece_board<white, KING>();
 	cmt &= get_king_move(ksq);
 	BitBoard captures = cmt & pos.board.get_player_occ<!white>();
 	BitBoard non_captures = cmt & ~captures;
 	uint64_t ret = 0;
 	while (non_captures) {
-		Square to = pop(non_captures);
+		BitBoard to = popextr(non_captures);
 		uint64_t loc_ret = 0;
-		BitBoard move = square_to_mask(ksq) | square_to_mask(to);
+		BitBoard move = ksq_mask | to;
 
 		plain_move<white, KING>(pos.board, move);
-		pos.set_ksq<white>(to);
-		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
+		pos.set_ksq<white>(lbit(to));
+		if (!pos.is_attacked<white>(lbit(to))) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
 		unmake_plain_move<white, KING>(pos.board, move);
 
-		if constexpr (print_move) print_movecnt(ksq, to, loc_ret);
+		if constexpr (print_move) print_movecnt(lbit(ksq_mask), lbit(to), loc_ret);
 		ret += loc_ret;
 	}
 
 	while (captures) {
-		Square to = pop(captures);
+		BitBoard to = popextr(captures);
 		uint64_t loc_ret = 0;
-		Piece captured = pos.board.get_piece<!white>(to);
-		BitBoard move = square_to_mask(ksq) | square_to_mask(to);
-		BitBoard to_mask = square_to_mask(to);
+		Piece captured = pos.board.get_piece<!white>(lbit(to));
+		BitBoard move = ksq_mask | to;
 
-		capture_move_wrapper<white, KING>(pos.board, captured, move, to_mask);
-		pos.set_ksq<white>(to);
-		if (!pos.is_attacked<white>(to)) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
-		unmake_capture_wrapper<white, KING>(pos.board, captured, move, to_mask);
+		capture_move_wrapper<white, KING>(pos.board, captured, move, to);
+		pos.set_ksq<white>(lbit(to));
+		if (!pos.is_attacked<white>(lbit(to))) loc_ret += count_moves<!white, dtg - 1, false, rm_cr<white>(cr)>(pos);
+		unmake_capture_wrapper<white, KING>(pos.board, captured, move, to);
 
-		if constexpr (print_move) print_movecnt(ksq, to, loc_ret);
+		if constexpr (print_move) print_movecnt(lbit(ksq_mask), lbit(to), loc_ret);
 		ret += loc_ret;
 	}
 
@@ -290,16 +290,16 @@ static inline uint64_t generate_pawn_double(BitBoard cmt, Position& pos, BitBoar
 	} else {
 		uint64_t ret = 0;
 		while (source) {
-			Square from = pop(source);
-			BitBoard to_board = cmt & get_pawn_double<white>(square_to_mask(from), pos.board.occ_board);
+			BitBoard from = popextr(source);
+			BitBoard to_board = cmt & get_pawn_double<white>(from, pos.board.occ_board);
 			while (to_board) {
-				Square to = pop(to_board);
-				BitBoard move = square_to_mask(from) | square_to_mask(to);
+				BitBoard to = popextr(to_board);
+				BitBoard move = from | to;
 				bool ep = pawn_double<white>(pos.board, move, to, pos.ep_flag);
 				uint64_t loc_ret = ep ? count_moves<!white, dtg - 1, false, cr, true>(pos)
 									  : count_moves<!white, dtg - 1, false, cr, false>(pos);
 				unmake_pawn_double<white>(pos.board, move);
-				if constexpr (print_move) print_movecnt(from, to, loc_ret);
+				if constexpr (print_move) print_movecnt(lbit(from), lbit(to), loc_ret);
 				ret += loc_ret;
 			}
 		}
