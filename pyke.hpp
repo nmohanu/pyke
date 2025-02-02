@@ -71,13 +71,12 @@ static inline uint64_t count_captures(BitBoard cmt, Square from, Position& pos) 
 		uint64_t ret = 0;
 		while (cmt) {
 			uint64_t loc_ret = 0;
-			Square to = pop(cmt);
+			BitBoard to = popextr(cmt);
 			// Capture moves.
-			const Piece captured = pos.board.get_piece<!white>(to);
-			BitBoard move = square_to_mask(from) | square_to_mask(to);
-			BitBoard to_mask = square_to_mask(to);
+			const Piece captured = pos.board.get_piece<!white>(lbit(to));
+			BitBoard move = square_to_mask(from) | to;
 
-			capture_move_wrapper<white, p>(pos.board, captured, move, to_mask);
+			capture_move_wrapper<white, p>(pos.board, captured, move, to);
 			if (captured == ROOK) {
 				constexpr int rook_sq_index = 2 * white;
 				const bool rm_ks = to == rook_start_squares[rook_sq_index];
@@ -88,9 +87,9 @@ static inline uint64_t count_captures(BitBoard cmt, Square from, Position& pos) 
 			} else {
 				loc_ret += count_moves<!white, dtg - 1, false, cr>(pos);
 			}
-			unmake_capture_wrapper<white, p>(pos.board, captured, move, to_mask);
+			unmake_capture_wrapper<white, p>(pos.board, captured, move, to);
 
-			if constexpr (print_move) print_movecnt(from, to, loc_ret);
+			if constexpr (print_move) print_movecnt(from, lbit(to), loc_ret);
 			ret += loc_ret;
 		}
 		return ret;
@@ -106,14 +105,14 @@ static inline uint64_t count_plain(BitBoard cmt, Square from, Position& pos) {
 		uint64_t ret = 0;
 		while (cmt) {
 			uint64_t loc_ret = 0;
-			Square to = pop(cmt);
-			BitBoard move = square_to_mask(from) | square_to_mask(to);
+			BitBoard to = popextr(cmt);
+			BitBoard move = square_to_mask(from) | to;
 
 			plain_move<white, p>(pos.board, move);
 			loc_ret += count_moves<!white, dtg - 1, false, cr>(pos);
 			unmake_plain_move<white, p>(pos.board, move);
 
-			if constexpr (print_move) print_movecnt(from, to, loc_ret);
+			if constexpr (print_move) print_movecnt(from, lbit(to), loc_ret);
 			ret += loc_ret;
 		}
 		return ret;

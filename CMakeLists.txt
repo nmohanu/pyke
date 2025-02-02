@@ -34,6 +34,11 @@ add_custom_target(release
   COMMENT "Building in Release mode"
 )
 
+add_custom_target(debug
+	COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR} && make
+	COMMENT "Building in Debug mode"
+)
+
 add_dependencies(generate main) 
 add_custom_command(TARGET generate POST_BUILD
     COMMAND ./main
