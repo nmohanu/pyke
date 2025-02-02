@@ -8,7 +8,8 @@ void Board::print_board() {
 		for (int col = 0; col < 8; col++) {
 			Square square = (7 - row) * 8 + col;
 			bool white = w_board & square_to_mask(square);
-			uint8_t piece_type = white ? get_piece<true>(square) : get_piece<false>(square);
+			uint8_t piece_type =
+				white ? get_piece<true>(square_to_mask(square)) : get_piece<false>(square_to_mask(square));
 			char piece;
 			switch (piece_type) {
 			case KING:

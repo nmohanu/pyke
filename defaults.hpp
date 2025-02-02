@@ -16,6 +16,7 @@ typedef uint8_t File;
 typedef std::pair<Square, Square> sq_pair;
 typedef uint8_t CastlingRights;
 typedef uint8_t MoveType;
+typedef uint64_t NodeCount;
 
 // Default bitboards.
 constexpr uint64_t INIT_ROOK_SQUARES = 0b1000000100000000000000000000000000000000000000000000000010000001ULL;
@@ -67,7 +68,10 @@ inline constexpr BitBoard no_edges = 0b0111'1110'0111'1110'0111'1110'0111'1110'0
 #define wq_mask (0b0100)
 #define wk_mask (0b1000)
 
-#define can_capture_left(b)	 b & 0x7F7F7F7F7F7F7F7F
-#define can_capture_right(b) b & 0xFEFEFEFEFEFEFEFE
+#define ccl(b) b & 0x7F7F7F7F7F7F7F7F
+#define ccr(b) b & 0xFEFEFEFEFEFEFEFE
+
+#define start_rank(white) (white ? pawn_start_w : pawn_start_b)
+#define promo_rank(white) (white ? promotion_from_w : promotion_from_b)
 
 #endif	// !DEFAULTS_H

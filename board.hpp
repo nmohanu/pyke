@@ -109,8 +109,7 @@ struct Board {
 
 	// Returns the piece on the square or EMPTY by defualt.
 	template <bool white>
-	inline Piece get_piece(Square square) {
-		BitBoard mask = square_to_mask(square);
+	inline Piece get_piece(BitBoard mask) {
 		if (get_piece_board<white, PAWN>() & mask) return PAWN;
 		if (get_piece_board<white, KNIGHT>() & mask) return KNIGHT;
 		if (get_piece_board<white, BISHOP>() & mask) return BISHOP;
