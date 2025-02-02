@@ -260,7 +260,7 @@ static inline uint64_t make_en_passant(Position& pos, uint8_t ep, MaskSet& msk) 
 	sq_pair epsq = get_ep_squares<white, offset>(ep);
 	BitBoard move = square_to_mask(epsq.first) | square_to_mask(epsq.second);
 	BitBoard capture_sq = square_to_mask(white ? epsq.second + 8 : epsq.second - 8);
-	if (capture_sq & msk.pinmask_dg) return 0;
+	if (capture_sq & msk.pin_dg) return 0;
 
 	ep_move<white>(pos.board, move, capture_sq);
 
@@ -309,65 +309,57 @@ static inline NodeCount generate_pawn_double(BitBoard cmt, Position& pos, BitBoa
 
 // Concrete generator for pawn moves. Creates double pushes, pushes and captures, in bulk if possible.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
+static inline NodeCount generate_pawn_moves(BitBoard cmt, BitBoard pieces, Position& pos) {
 	if (!(cmt && pieces)) return 0;
-	BitBoard occ = pos.board.occ_board;
-	BitBoard cmt_free = cmt & ~occ;
-	BitBoard cmt_captures = cmt & occ;
-	BitBoard pawns_on_start = pieces & (white ? pawn_start_w : pawn_start_b);
-	uint64_t ret = generate_pawn_double<white, dtg, print_move, cr>(cmt, pos, pawns_on_start);
+	// Isolate free and occupied squares.
+	BitBoard occ = pos.board.occ_board, cmt_free = cmt & ~occ, cmt_captures = cmt & occ;
+	BitBoard pawns_on_start = pieces & start_rank(white);
+	NodeCount acc = generate_pawn_double<white, dtg, print_move, cr>(cmt, pos, pawns_on_start);
 
 	// Generate moves in bulk.
 	if constexpr (dtg <= 1 && !print_move) {
-		ret += popcnt(get_pawn_forward<white>(pieces) & cmt_free);
-		ret += popcnt(get_pawn_left<white>(can_capture_left(pieces)) & cmt_captures);
-		ret += popcnt(get_pawn_right<white>(can_capture_right(pieces)) & cmt_captures);
+		acc += popcnt(get_pawn_forward<white>(pieces) & cmt_free);
+		acc += popcnt(get_pawn_left<white>(ccl(pieces)) & cmt_captures);
+		acc += popcnt(get_pawn_right<white>(ccr(pieces)) & cmt_captures);
 	} else {
 		while (pieces) {
-			Square from = pop(pieces);
+			BitBoard from = popextr(pieces);
 			BitBoard captures = get_pawn_move<white, PawnMoveType::ATTACKS>(from, occ) & cmt_captures;
 			BitBoard non_captures = get_pawn_move<white, PawnMoveType::FORWARD>(from, occ) & cmt_free;
-			ret += count_plain<white, PAWN, dtg, print_move, cr>(non_captures, from, pos);
-			ret += count_captures<white, PAWN, dtg, print_move, cr>(captures, from, pos);
+			acc += count_plain<white, PAWN, dtg, print_move, cr>(non_captures, lbit(from), pos);
+			acc += count_captures<white, PAWN, dtg, print_move, cr>(captures, lbit(from), pos);
 		}
 	}
-	return ret;
+	return acc;
 }
 
 // Wrapper.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_pawn(Position& pos, MaskSet& msk) {
-	BitBoard can_move_from = pos.board.get_piece_board<white, PAWN>();
-	BitBoard pawns_on_promo = can_move_from & (white ? promotion_from_w : promotion_from_b);
-	can_move_from &= ~pawns_on_promo;
-	BitBoard pinned = can_move_from & ~msk.nopin;
-	BitBoard unpinned = can_move_from & msk.nopin;
-
-	// Unpinned + pinned.
-	return generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt, unpinned, pos)
-		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt & ~msk.nopin, pinned, pos);
+static inline NodeCount generate_pawn(Position& pos, MaskSet& msk) {
+	// Extract pawns on promo rank, they are handled seperately.
+	BitBoard cmf = pos.piece_brd<white, PAWN>(), on_promo = cmf & promo_rank(white), not_promo = cmf & ~on_promo;
+	// Count pinned + unpinned.
+	return generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt, not_promo & msk.nopin, pos)
+		+ generate_pawn_moves<white, dtg, print_move, cr>(msk.cmt & ~msk.nopin, not_promo & ~msk.nopin, pos);
 }
 
 /*
  *	SLIDERS
  */
 
+// Slider moves.
 template <bool white, int dtg, bool print_move, CastlingRights cr>
-static inline uint64_t generate_sliders(Position& pos, MaskSet& msk) {
-	BitBoard bishops = pos.board.get_piece_board<white, BISHOP>();
-	BitBoard rooks = pos.board.get_piece_board<white, ROOK>();
-	BitBoard queens = pos.board.get_piece_board<white, QUEEN>();
-	BitBoard unp_b = bishops & msk.nopin;
-	BitBoard unp_r = rooks & msk.nopin;
-	BitBoard unp_q = queens & msk.nopin;
-	BitBoard pin_cmt_diag = msk.cmt & msk.pinmask_dg;
-	BitBoard pin_cmt_orth = msk.cmt & msk.pinmask_orth;
-	BitBoard dg_not_orth = msk.pinmask_dg & ~msk.pinmask_orth;
-	BitBoard orth_not_dg = msk.pinmask_orth & ~msk.pinmask_dg;
-	BitBoard pin_b = bishops & dg_not_orth;
-	BitBoard pin_q_diag = queens & dg_not_orth;
-	BitBoard pin_r = rooks & orth_not_dg;
-	BitBoard pin_q_orth = queens & orth_not_dg;
+static inline NodeCount generate_sliders(Position& pos, MaskSet& msk) {
+	// Sources.
+	BitBoard b = pos.piece_brd<white, BISHOP>(), r = pos.piece_brd<white, ROOK>(), q = pos.piece_brd<white, QUEEN>();
+	// Unpinned.
+	BitBoard unp_b = b & msk.nopin, unp_r = r & msk.nopin, unp_q = q & msk.nopin;
+	// Pinned can move to.
+	BitBoard pin_cmt_diag = msk.cmt & msk.pin_dg, pin_cmt_orth = msk.cmt & msk.pin_orth;
+	// Pinmasks exclusive direction.
+	BitBoard dg_only = msk.pin_dg & ~msk.pin_orth, orth_only = msk.pin_orth & ~msk.pin_dg;
+	// Isolate pinned pieces.
+	BitBoard pin_b = b & dg_only, pin_q_diag = q & dg_only, pin_r = r & orth_only, pin_q_orth = q & orth_only;
 
 	// Pinned + unpinned.
 	return generate_moves<white, BISHOP, dtg, print_move, cr>(pin_cmt_diag, pin_b, pos)

@@ -12,8 +12,8 @@ struct MaskSet {
 	BitBoard cmt;
 
 	// Pinmask.
-	BitBoard pinmask_dg = 0;
-	BitBoard pinmask_orth = 0;
+	BitBoard pin_dg = 0;
+	BitBoard pin_orth = 0;
 	BitBoard check_mask = 0;
 	BitBoard nopin = 0;
 
@@ -22,8 +22,8 @@ struct MaskSet {
 	inline uint8_t get_check_cnt() { return checkers; }
 
 	inline void reset() {
-		pinmask_dg = 0;
-		pinmask_orth = 0;
+		pin_dg = 0;
+		pin_orth = 0;
 		check_mask = 0;
 		checkers = 0;
 	}
@@ -70,9 +70,9 @@ MaskSet& create_masks(Board& b, Square king_square, MaskSet& ret) {
 		}
 	};
 
-	process_pinners(diag_pinners, ret.pinmask_dg);
-	process_pinners(orth_pinners, ret.pinmask_orth);
-	ret.nopin = ~(ret.pinmask_dg | ret.pinmask_orth);
+	process_pinners(diag_pinners, ret.pin_dg);
+	process_pinners(orth_pinners, ret.pin_orth);
+	ret.nopin = ~(ret.pin_dg | ret.pin_orth);
 
 	return ret;
 }

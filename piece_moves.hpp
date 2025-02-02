@@ -81,8 +81,7 @@ static inline BitBoard get_pawn_double(const BitBoard piece_board, const BitBoar
 
 // Calls the requested pawn move type function.
 template <bool white, PawnMoveType type>
-static inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
-	BitBoard p_board = square_to_mask(s);
+static inline BitBoard get_pawn_move(const BitBoard p_board, BitBoard occ) {
 	switch (type) {
 	case PawnMoveType::ATTACKS:
 		return get_pawn_attacks<white>(p_board);
@@ -93,8 +92,8 @@ static inline BitBoard get_pawn_move(const Square s, BitBoard occ) {
 	case PawnMoveType::DOUBLE_FORWARD:
 		return get_pawn_double<white>(p_board, occ);
 	case PawnMoveType::ALL:
-		return get_pawn_move<white, PawnMoveType::NON_DOUBLE>(s, occ)
-			| get_pawn_move<white, PawnMoveType::DOUBLE_FORWARD>(s, occ);
+		return get_pawn_move<white, PawnMoveType::NON_DOUBLE>(p_board, occ)
+			| get_pawn_move<white, PawnMoveType::DOUBLE_FORWARD>(p_board, occ);
 	}
 }
 
