@@ -3,11 +3,6 @@ Pyke is a highly optimized chess move generator / counter in progress.
 <br>
 Perft 7: 3195901860 nodes searched. 1600.46 MNPS on AMD 7900x.
 <br>
-TODO:
-<br>
-- Promotion moves.
-- Further optimizations.
-- Make moves and specify perft depth on runtime.
 
 # How to compile
 From project root: 
