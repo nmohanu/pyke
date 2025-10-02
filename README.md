@@ -1,5 +1,5 @@
 # About 
-Pyke is a highly optimized chess move generator / counter in progress.
+Pyke is a highly optimized chess move generator / counter in progress. Pyke currently ranks as the second fastest chess move generator ever built.
 <br>
 Perft 7: 3195901860 nodes searched. 1600.46 MNPS on AMD 7900x.
 <br>
